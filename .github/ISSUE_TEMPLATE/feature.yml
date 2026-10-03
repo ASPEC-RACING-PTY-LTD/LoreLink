@@ -1,0 +1,21 @@
+name: Feature
+description: Propose a change that fits the LoreLink architecture
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: >
+        Features that require AI, store canonical docs outside Git, or
+        couple LoreLink to a single Git provider will be declined.

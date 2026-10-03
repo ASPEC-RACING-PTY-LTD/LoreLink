@@ -1,0 +1,42 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: lorelink
+      POSTGRES_USER: lorelink
+      POSTGRES_PASSWORD: lorelink
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lorelink -d lorelink"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  lorelink:
+    build:
+      context: .
+      dockerfile: packaging/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      LORELINK_DATABASE_URL: postgres://lorelink:lorelink@postgres:5432/lorelink?sslmode=disable
+      LORELINK_DATA_DIR: /data
+      LORELINK_HTTP_ADDR: :8080
+      LORELINK_PUBLIC_URL: http://127.0.0.1:8080
+    volumes:
+      - lorelink_data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  pgdata:
+  lorelink_data:

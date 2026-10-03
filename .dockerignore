@@ -1,0 +1,13 @@
+.git
+.agents
+data
+bin
+node_modules
+web/node_modules
+web/portal/node_modules
+web/docs-site/node_modules
+web/shared/node_modules
+web/portal/dist
+web/docs-site/dist
+.cursor
+.gocache

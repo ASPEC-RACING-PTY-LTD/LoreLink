@@ -1,0 +1,14 @@
+{
+  "name": "lorelink-web",
+  "private": true,
+  "packageManager": "pnpm@10.10.0",
+  "scripts": {
+    "dev:portal": "pnpm --filter @lorelink/portal dev",
+    "dev:docs": "pnpm --filter @lorelink/docs-site dev",
+    "build": "pnpm --filter @lorelink/portal build && pnpm --filter @lorelink/docs-site build",
+    "typecheck": "pnpm --filter @lorelink/portal typecheck && pnpm --filter @lorelink/docs-site typecheck"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  }
+}

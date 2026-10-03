@@ -1,0 +1,15 @@
+/data/
+/bin/
+/dist/
+*.exe
+*.test
+*.out
+.env
+.env.local
+.DS_Store
+node_modules/
+web/portal/dist/
+web/docs-site/dist/
+.pnpm-store/
+.gocache/
+coverage.out
