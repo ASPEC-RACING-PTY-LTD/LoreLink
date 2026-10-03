@@ -1,0 +1,15 @@
+import { createWebhooks } from '{{ imports.root }}';
+import { createMemoryStore } from '{{ imports.memory }}';
+import { createWebhooksAdminRouter } from '{{ imports.express }}';
+
+export const webhooks = createWebhooks({
+  store: createMemoryStore(),
+  security: {
+    encryptionKey: process.env.WEBHOOKS_ENCRYPTION_KEY!,
+    ssrf: { requireHttps: true },
+  },
+});
+
+export const webhooksAdminRouter = createWebhooksAdminRouter(webhooks, {
+  resolveSubject: (req) => (req as { user?: { id: string } }).user,
+});

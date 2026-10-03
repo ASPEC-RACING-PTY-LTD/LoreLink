@@ -1,13 +1,13 @@
 import { initTheme, type LoreLinkTheme } from "@lorelink/shared/theme";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { api, type Organisation, type User } from "../api";
+import { useEffect, useState } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { api, type Instance, type Organisation, type User } from "../api";
 import { BrandMark } from "../ui/BrandMark";
-import { IconActivity, IconAdmin, IconDocs, IconMembers, IconMenu, IconProjects } from "../ui/icons";
+import { IconActivity, IconAdmin, IconConnections, IconDocs, IconMembers, IconMenu, IconPlus, IconProjects, IconSettings, IconTeams } from "../ui/icons";
 import { ThemeToggle } from "../ui/ThemeToggle";
 
-type Me = { user: User; organisations: Organisation[]; instance: { name: string } | null };
+type Me = { user: User; organisations: Organisation[]; instance: Instance | null };
 
 function navClass({ isActive }: { isActive: boolean }) {
   return isActive ? "nav-link nav-link-active" : "nav-link";
@@ -17,10 +17,20 @@ export function Shell({ me }: { me: Me }) {
   const [orgID, setOrgID] = useState(me.organisations[0]?.id ?? "");
   const [theme, setTheme] = useState<LoreLinkTheme>(() => initTheme());
   const [navOpen, setNavOpen] = useState(false);
+  const [orgName, setOrgName] = useState("");
+  const [orgBusy, setOrgBusy] = useState(false);
+  const [orgError, setOrgError] = useState("");
+  const location = useLocation();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const isInstanceAdmin = me.user.instance_capabilities.includes("instance.admin");
   const org = me.organisations.find((o) => o.id === orgID) ?? me.organisations[0];
+
+  useEffect(() => {
+    if (!orgID && me.organisations[0]?.id) {
+      setOrgID(me.organisations[0].id);
+    }
+  }, [me.organisations, orgID]);
   const initials = me.user.name
     .split(/\s+/)
     .filter(Boolean)
@@ -45,13 +55,34 @@ export function Shell({ me }: { me: Me }) {
       </div>
       <nav className="flex-1 px-3 py-4" aria-label="Portal">
         <p className="nav-title">Organisation</p>
-        <NavLink to="/" end className={navClass} onClick={closeNav}>
+        <NavLink
+          to="/"
+          end
+          className={({ isActive }) => navClass({ isActive: isActive || location.pathname.startsWith("/projects/") })}
+          onClick={closeNav}
+        >
           <IconProjects />
           Projects
+        </NavLink>
+        <NavLink to="/connections" className={navClass} onClick={closeNav}>
+          <IconConnections />
+          Connections
+        </NavLink>
+        <NavLink to="/teams" className={navClass} onClick={closeNav}>
+          <IconTeams />
+          Teams
         </NavLink>
         <NavLink to="/members" className={navClass} onClick={closeNav}>
           <IconMembers />
           Members
+        </NavLink>
+        <NavLink to="/roles" className={navClass} onClick={closeNav}>
+          <IconSettings />
+          Roles
+        </NavLink>
+        <NavLink to="/api-keys" className={navClass} onClick={closeNav}>
+          <IconSettings />
+          API keys
         </NavLink>
         <NavLink to="/activity" className={navClass} onClick={closeNav}>
           <IconActivity />
@@ -108,9 +139,44 @@ export function Shell({ me }: { me: Me }) {
                     </option>
                   ))}
                 </select>
+              ) : org?.name ? (
+                <p className="truncate text-sm font-medium">{org.name}</p>
+              ) : isInstanceAdmin ? (
+                <form
+                  className="flex min-w-0 items-center gap-2"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    setOrgBusy(true);
+                    setOrgError("");
+                    try {
+                      const created = await api.createOrganisation(orgName.trim());
+                      setOrgName("");
+                      setOrgID(created.id);
+                      await qc.invalidateQueries({ queryKey: ["me"] });
+                    } catch (err) {
+                      setOrgError(err instanceof Error ? err.message : "could not create organisation");
+                    } finally {
+                      setOrgBusy(false);
+                    }
+                  }}
+                >
+                  <input
+                    className="input max-w-48"
+                    placeholder="Organisation name"
+                    value={orgName}
+                    onChange={(e) => setOrgName(e.target.value)}
+                    required
+                    aria-label="New organisation name"
+                  />
+                  <button type="submit" className="btn btn-primary" disabled={orgBusy || !orgName.trim()}>
+                    <IconPlus />
+                    {orgBusy ? "Creating..." : "Create"}
+                  </button>
+                </form>
               ) : (
-                <p className="truncate text-sm font-medium">{org?.name ?? "No organisation"}</p>
+                <p className="truncate text-sm font-medium">No organisation</p>
               )}
+              {orgError ? <p className="mt-1 text-xs text-destructive">{orgError}</p> : null}
             </div>
           </div>
           <div className="hidden max-w-md flex-1 md:flex">

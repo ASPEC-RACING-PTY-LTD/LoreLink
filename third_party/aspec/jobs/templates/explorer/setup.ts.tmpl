@@ -1,0 +1,63 @@
+import { createQueue, createWorker, installShutdownHandlers, type JobHandlers, type Worker } from '{{ imports.root }}';
+{{#if backend == "memory"}}
+import { createMemoryBackend } from '{{ imports.memory }}';
+{{else}}
+import { createSqlBackend, migrate } from '{{ imports.sql }}';
+{{/if}}
+{{#if framework == "express"}}
+import { createJobsAdminMiddleware } from '{{ imports.express }}';
+{{/if}}
+{{#if framework == "fastify"}}
+import { jobsAdminFastifyPlugin } from '{{ imports.fastify }}';
+{{/if}}
+{{#if framework == "hono"}}
+import { createJobsAdminHonoHandler } from '{{ imports.hono }}';
+{{/if}}
+{{#if framework == "fetch"}}
+import { createJobsAdminFetchHandler } from '{{ imports.fetch }}';
+{{/if}}
+
+{{#if backend == "memory"}}
+const backend = createMemoryBackend();
+{{else}}
+// Provide a SqlClient (see docs/integrate.md). Example assumes `sqlClient` is in scope.
+await migrate(sqlClient);
+const backend = createSqlBackend(sqlClient);
+{{/if}}
+
+export const queue = createQueue({
+  backend,
+  retry: { maxAttempts: {{ maxAttempts }} },
+});
+
+/** Starts a worker for your handlers, e.g. `await startWorker({ 'emails.send': async (payload) => {} })`. */
+export async function startWorker(handlers: JobHandlers): Promise<Worker> {
+  const worker = createWorker({ queue, handlers, concurrency: {{ concurrency }} });
+  installShutdownHandlers(worker);
+  await worker.start();
+  return worker;
+}
+
+{{#if framework == "express"}}
+export const jobsAdmin = createJobsAdminMiddleware({
+  queue,
+  authorize: async () => false, // replace with real auth
+});
+{{/if}}
+{{#if framework == "fastify"}}
+export { jobsAdminFastifyPlugin };
+{{/if}}
+{{#if framework == "hono"}}
+export const jobsAdmin = createJobsAdminHonoHandler({
+  queue,
+  basePath: '/admin/jobs',
+  authorize: async () => false,
+});
+{{/if}}
+{{#if framework == "fetch"}}
+export const jobsAdmin = createJobsAdminFetchHandler({
+  queue,
+  basePath: '/admin/jobs',
+  authorize: async () => false,
+});
+{{/if}}

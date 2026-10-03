@@ -1,0 +1,46 @@
+import { createWebhooks } from '{{ imports.root }}';
+import { createMemoryStore } from '{{ imports.memory }}';
+{{#if framework == "express"}}
+import { createWebhooksAdminRouter } from '{{ imports.express }}';
+{{/if}}
+{{#if framework == "fastify"}}
+import { webhooksAdminFastifyPlugin } from '{{ imports.fastify }}';
+{{/if}}
+{{#if framework == "hono"}}
+import { createWebhooksAdminHono } from '{{ imports.hono }}';
+{{/if}}
+{{#if framework == "fetch"}}
+import { createWebhooksAdminFetchHandler } from '{{ imports.fetch }}';
+{{/if}}
+
+export const webhooks = createWebhooks({
+  store: createMemoryStore(),
+  security: {
+    encryptionKey: process.env.WEBHOOKS_ENCRYPTION_KEY!,
+    ssrf: { requireHttps: true },
+  },
+});
+
+{{#if framework == "express"}}
+export const webhooksAdminRouter = createWebhooksAdminRouter(webhooks, {
+  resolveSubject: (req) => (req as { user?: { id: string } }).user,
+});
+{{/if}}
+{{#if framework == "fastify"}}
+export { webhooksAdminFastifyPlugin };
+export const webhooksPluginOpts = {
+  service: webhooks,
+  resolveSubject: (req: { user?: { id: string } }) => req.user,
+};
+{{/if}}
+{{#if framework == "hono"}}
+export const webhooksAdminApp = createWebhooksAdminHono(webhooks, {
+  resolveSubject: (c) => c.get('subject'),
+});
+{{/if}}
+{{#if framework == "fetch"}}
+export const webhooksAdminHandler = createWebhooksAdminFetchHandler(webhooks, {
+  basePath: '/admin/webhooks',
+  resolveSubject: () => ({ id: 'admin' }),
+});
+{{/if}}

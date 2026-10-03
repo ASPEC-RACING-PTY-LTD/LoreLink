@@ -1,0 +1,12 @@
+import { createQueue, createWorker, installShutdownHandlers, type JobHandlers, type Worker } from '{{ imports.root }}';
+import { createMemoryBackend } from '{{ imports.memory }}';
+
+export const queue = createQueue({ backend: createMemoryBackend() });
+
+/** Starts a worker for your handlers, e.g. `await startWorker({ 'emails.send': async (payload) => {} })`. */
+export async function startWorker(handlers: JobHandlers): Promise<Worker> {
+  const worker = createWorker({ queue, handlers });
+  installShutdownHandlers(worker);
+  await worker.start();
+  return worker;
+}

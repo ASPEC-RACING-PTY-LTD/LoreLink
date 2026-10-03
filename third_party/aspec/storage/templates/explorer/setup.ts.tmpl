@@ -1,0 +1,76 @@
+import { createStorage } from '{{ imports.root }}';
+{{#if metadata == "memory"}}
+import { createMemoryMetadataStore } from '{{ imports.memory }}';
+{{else}}
+import { createSqlMetadataStore, migrate } from '{{ imports.sql }}';
+{{/if}}
+{{#if driver == "local"}}
+import { createLocalDriver } from '{{ imports.local }}';
+{{else}}
+import { createS3Driver } from '{{ imports.s3 }}';
+{{/if}}
+{{#if framework == "express"}}
+import { createStorageMiddleware } from '{{ imports.express }}';
+{{/if}}
+{{#if framework == "fastify"}}
+import { storageFastifyPlugin } from '{{ imports.fastify }}';
+{{/if}}
+{{#if framework == "hono"}}
+import { createStorageHonoHandler } from '{{ imports.hono }}';
+{{/if}}
+{{#if framework == "fetch"}}
+import { createStorageFetchHandler } from '{{ imports.fetch }}';
+{{/if}}
+
+{{#if driver == "local"}}
+const driver = createLocalDriver({ root: process.env.STORAGE_ROOT ?? './data/files' });
+{{else}}
+const driver = createS3Driver({
+  bucket: process.env.STORAGE_S3_BUCKET!,
+  endpoint: process.env.STORAGE_S3_ENDPOINT,
+  region: process.env.STORAGE_S3_REGION ?? 'us-east-1',
+  forcePathStyle: true,
+  credentials: {
+    accessKeyId: process.env.STORAGE_S3_ACCESS_KEY!,
+    secretAccessKey: process.env.STORAGE_S3_SECRET_KEY!,
+  },
+});
+{{/if}}
+
+{{#if metadata == "memory"}}
+const metadata = createMemoryMetadataStore();
+{{else}}
+await migrate(sqlClient);
+const metadata = createSqlMetadataStore(sqlClient);
+{{/if}}
+
+export const storage = createStorage({
+  driver,
+  metadata,
+  signingSecret: process.env.STORAGE_SIGNING_SECRET!,
+  validation: { maxBytes: {{ maxBytes }} },
+});
+
+{{#if framework == "express"}}
+export const storageRoutes = createStorageMiddleware({
+  storage,
+  publicBaseUrl: process.env.STORAGE_PUBLIC_BASE_URL,
+});
+{{/if}}
+{{#if framework == "fastify"}}
+export { storageFastifyPlugin };
+{{/if}}
+{{#if framework == "hono"}}
+export const storageRoutes = createStorageHonoHandler({
+  storage,
+  basePath: '/files',
+  publicBaseUrl: process.env.STORAGE_PUBLIC_BASE_URL,
+});
+{{/if}}
+{{#if framework == "fetch"}}
+export const storageRoutes = createStorageFetchHandler({
+  storage,
+  basePath: '/files',
+  publicBaseUrl: process.env.STORAGE_PUBLIC_BASE_URL,
+});
+{{/if}}

@@ -14,6 +14,7 @@ import (
 	"github.com/lib/pq"
 
 	"lorelink.dev/lorelink/internal/access"
+	"lorelink.dev/lorelink/internal/aspecmod"
 )
 
 var ErrNotFound = errors.New("store: not found")
@@ -200,6 +201,51 @@ func (s *Store) ListOrganisationsForUser(ctx context.Context, userID string) ([]
 	return out, rows.Err()
 }
 
+func (s *Store) GetOrganisationBySlug(ctx context.Context, slug string) (*Organisation, error) {
+	var o Organisation
+	err := s.DB.QueryRowContext(ctx, `
+		SELECT id::text, slug, name, created_at FROM organisations WHERE slug = $1`, slug).
+		Scan(&o.ID, &o.Slug, &o.Name, &o.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &o, nil
+}
+
+func (s *Store) CreateOrganisation(ctx context.Context, org Organisation, adminUserID, roleName string) (*Organisation, error) {
+	if org.ID == "" {
+		org.ID = uuid.NewString()
+	}
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	if err := tx.QueryRowContext(ctx, `
+		INSERT INTO organisations (id, slug, name) VALUES ($1,$2,$3) RETURNING created_at`,
+		org.ID, org.Slug, org.Name).Scan(&org.CreatedAt); err != nil {
+		return nil, err
+	}
+	var roleID string
+	if err := tx.QueryRowContext(ctx, `SELECT id::text FROM roles WHERE org_id IS NULL AND name = $1`, roleName).Scan(&roleID); err != nil {
+		return nil, err
+	}
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO org_memberships (org_id, user_id, role_id) VALUES ($1,$2,$3)
+		ON CONFLICT (org_id, user_id) DO UPDATE SET role_id = EXCLUDED.role_id`,
+		org.ID, adminUserID, roleID); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	_ = s.UpsertRBACAssignment(ctx, adminUserID, aspecmod.RoleKey(roleName), org.ID, "", 0, &adminUserID)
+	return &org, nil
+}
+
 func (s *Store) GetOrganisation(ctx context.Context, id string) (*Organisation, error) {
 	var o Organisation
 	err := s.DB.QueryRowContext(ctx, `
@@ -288,14 +334,18 @@ func (s *Store) RoleByName(ctx context.Context, name string) (*Role, error) {
 func (s *Store) RoleByID(ctx context.Context, id string) (*Role, error) {
 	var r Role
 	var caps []string
+	var orgID sql.NullString
 	err := s.DB.QueryRowContext(ctx, `
-		SELECT id::text, name, capabilities FROM roles WHERE id = $1`, id).
-		Scan(&r.ID, &r.Name, pq.Array(&caps))
+		SELECT id::text, org_id::text, name, capabilities FROM roles WHERE id = $1`, id).
+		Scan(&r.ID, &orgID, &r.Name, pq.Array(&caps))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
 	if err != nil {
 		return nil, err
+	}
+	if orgID.Valid {
+		r.OrgID = &orgID.String
 	}
 	r.Capabilities = stringsToCaps(caps)
 	return &r, nil
@@ -371,7 +421,13 @@ func (s *Store) AcceptInvitation(ctx context.Context, inv Invitation, user User)
 		UPDATE invitations SET accepted_at = now() WHERE id = $1`, inv.ID); err != nil {
 		return err
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	if role, rerr := s.RoleByID(ctx, inv.RoleID); rerr == nil {
+		_ = s.UpsertRBACAssignment(ctx, user.ID, aspecmod.RoleKey(role.Name), inv.OrgID, "", 0, nil)
+	}
+	return nil
 }
 
 func (s *Store) CreateProject(ctx context.Context, p Project) (*Project, error) {
@@ -391,10 +447,10 @@ func (s *Store) CreateProject(ctx context.Context, p Project) (*Project, error) 
 		p.Visibility = "private"
 	}
 	err := s.DB.QueryRowContext(ctx, `
-		INSERT INTO projects (id, org_id, name, slug, description, visibility, docs_root, default_branch, publish_policy)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO projects (id, org_id, name, slug, description, visibility, docs_root, default_branch, publish_policy, host, base_path)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		RETURNING created_at`,
-		p.ID, p.OrgID, p.Name, p.Slug, p.Description, p.Visibility, p.DocsRoot, p.DefaultBranch, p.PublishPolicy).
+		p.ID, p.OrgID, p.Name, p.Slug, p.Description, p.Visibility, p.DocsRoot, p.DefaultBranch, p.PublishPolicy, p.Host, p.BasePath).
 		Scan(&p.CreatedAt)
 	if err != nil {
 		return nil, err
@@ -404,7 +460,7 @@ func (s *Store) CreateProject(ctx context.Context, p Project) (*Project, error) 
 
 func (s *Store) ListProjects(ctx context.Context, orgID string) ([]Project, error) {
 	rows, err := s.DB.QueryContext(ctx, `
-		SELECT id::text, org_id::text, name, slug, description, visibility, docs_root, default_branch, publish_policy, created_at
+		SELECT id::text, org_id::text, name, slug, description, visibility, docs_root, default_branch, publish_policy, host, base_path, created_at
 		FROM projects WHERE org_id = $1 ORDER BY name`, orgID)
 	if err != nil {
 		return nil, err
@@ -413,7 +469,7 @@ func (s *Store) ListProjects(ctx context.Context, orgID string) ([]Project, erro
 	var out []Project
 	for rows.Next() {
 		var p Project
-		if err := rows.Scan(&p.ID, &p.OrgID, &p.Name, &p.Slug, &p.Description, &p.Visibility, &p.DocsRoot, &p.DefaultBranch, &p.PublishPolicy, &p.CreatedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.OrgID, &p.Name, &p.Slug, &p.Description, &p.Visibility, &p.DocsRoot, &p.DefaultBranch, &p.PublishPolicy, &p.Host, &p.BasePath, &p.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, p)

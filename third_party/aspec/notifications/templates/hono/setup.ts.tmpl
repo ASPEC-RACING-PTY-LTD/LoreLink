@@ -1,0 +1,23 @@
+import { createNotifications, createEmailChannel, createTemplateRegistry } from '{{ imports.root }}';
+import { createMemoryStore } from '{{ imports.memory }}';
+import { createSmtpTransport, smtpOptionsFromEnv } from '{{ imports.smtp }}';
+import { createNotificationsHono } from '{{ imports.hono }}';
+
+const transport = createSmtpTransport(smtpOptionsFromEnv());
+export const notifications = createNotifications({
+  store: createMemoryStore(),
+  templates: createTemplateRegistry({
+    email: [{ id: 'welcome', subject: 'Welcome \{{ name }}', text: 'Hello \{{ name }}', requiredVariables: ['name'] }],
+  }),
+  channels: { email: createEmailChannel(transport) },
+  preferences: {
+    categories: {
+      security: { mandatory: true, channels: ['email', 'in-app'] },
+      account: { mandatory: true, channels: ['email', 'in-app'] },
+    },
+  },
+});
+export const mailer = notifications.mailer;
+export const notificationsApp = createNotificationsHono(notifications, {
+  resolveUser: (c) => c.get('userId') as string | undefined,
+});

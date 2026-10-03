@@ -11,3 +11,4 @@ web/portal/dist
 web/docs-site/dist
 .cursor
 .gocache
+third_party

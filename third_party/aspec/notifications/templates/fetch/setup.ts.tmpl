@@ -1,0 +1,24 @@
+import { createNotifications, createEmailChannel, createTemplateRegistry } from '{{ imports.root }}';
+import { createMemoryStore } from '{{ imports.memory }}';
+import { createSmtpTransport, smtpOptionsFromEnv } from '{{ imports.smtp }}';
+import { createNotificationsFetchHandler } from '{{ imports.fetch }}';
+
+const transport = createSmtpTransport(smtpOptionsFromEnv());
+export const notifications = createNotifications({
+  store: createMemoryStore(),
+  templates: createTemplateRegistry({
+    email: [{ id: 'welcome', subject: 'Welcome \{{ name }}', text: 'Hello \{{ name }}', requiredVariables: ['name'] }],
+  }),
+  channels: { email: createEmailChannel(transport) },
+  preferences: {
+    categories: {
+      security: { mandatory: true, channels: ['email', 'in-app'] },
+      account: { mandatory: true, channels: ['email', 'in-app'] },
+    },
+  },
+});
+export const mailer = notifications.mailer;
+export const notificationsHandler = createNotificationsFetchHandler(notifications, {
+  basePath: '/api/notifications',
+  resolveUser: (req) => req.headers.get('x-user-id'),
+});

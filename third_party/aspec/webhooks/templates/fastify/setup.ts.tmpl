@@ -1,0 +1,17 @@
+import { createWebhooks } from '{{ imports.root }}';
+import { createMemoryStore } from '{{ imports.memory }}';
+import { webhooksAdminFastifyPlugin } from '{{ imports.fastify }}';
+
+export const webhooks = createWebhooks({
+  store: createMemoryStore(),
+  security: {
+    encryptionKey: process.env.WEBHOOKS_ENCRYPTION_KEY!,
+    ssrf: { requireHttps: true },
+  },
+});
+
+export { webhooksAdminFastifyPlugin };
+export const webhooksPluginOpts = {
+  service: webhooks,
+  resolveSubject: (req: { user?: { id: string } }) => req.user,
+};

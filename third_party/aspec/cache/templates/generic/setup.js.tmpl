@@ -1,0 +1,21 @@
+{{#if moduleSystem == "commonjs"}}
+const { createCache } = require('{{ imports.root }}');
+
+const cache = createCache({
+  store: 'memory',
+  failOpen: true,
+  defaultTtlMs: 60_000,
+  namespace: process.env.CACHE_NAMESPACE,
+});
+
+module.exports = { cache };
+{{else}}
+import { createCache } from '{{ imports.root }}';
+
+export const cache = createCache({
+  store: 'memory',
+  failOpen: true,
+  defaultTtlMs: 60_000,
+  namespace: process.env.CACHE_NAMESPACE,
+});
+{{/if}}

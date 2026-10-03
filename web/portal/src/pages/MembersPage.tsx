@@ -10,7 +10,11 @@ export function MembersPage() {
   const { orgID, org } = useOutletContext<ShellContext>();
   const qc = useQueryClient();
   const members = useQuery({ queryKey: ["members", orgID], queryFn: () => api.members(orgID), enabled: Boolean(orgID) });
-  const roles = useQuery({ queryKey: ["roles"], queryFn: api.roles });
+  const roles = useQuery({
+    queryKey: ["org-roles", orgID],
+    queryFn: () => api.orgRoles(orgID),
+    enabled: Boolean(orgID),
+  });
   const [email, setEmail] = useState("");
   const [roleID, setRoleID] = useState("");
   const [inviteToken, setInviteToken] = useState("");
@@ -98,6 +102,7 @@ export function MembersPage() {
                 <th>Member</th>
                 <th>Role</th>
                 <th>Instance</th>
+                <th />
               </tr>
             </thead>
             <tbody>
@@ -108,10 +113,46 @@ export function MembersPage() {
                     <div className="mt-1 font-mono text-sm text-muted-foreground">{m.email}</div>
                   </td>
                   <td>
-                    <span className="badge">{m.role?.name}</span>
+                    <select
+                      className="select"
+                      aria-label={`Role for ${m.email}`}
+                      value={m.role?.id ?? ""}
+                      onChange={async (e) => {
+                        setError("");
+                        try {
+                          await api.changeMemberRole(orgID, m.id, e.target.value);
+                          await qc.invalidateQueries({ queryKey: ["members", orgID] });
+                        } catch (err) {
+                          setError(err instanceof Error ? err.message : "could not change role");
+                        }
+                      }}
+                    >
+                      {(roles.data?.roles ?? []).map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.name}
+                        </option>
+                      ))}
+                    </select>
                   </td>
                   <td className="text-sm text-muted-foreground">
                     {m.instance_capabilities.includes("instance.admin") ? "instance admin" : "member"}
+                  </td>
+                  <td className="text-right">
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      onClick={async () => {
+                        setError("");
+                        try {
+                          await api.removeMember(orgID, m.id);
+                          await qc.invalidateQueries({ queryKey: ["members", orgID] });
+                        } catch (err) {
+                          setError(err instanceof Error ? err.message : "could not remove member");
+                        }
+                      }}
+                    >
+                      Remove
+                    </button>
                   </td>
                 </tr>
               ))}

@@ -1,0 +1,15 @@
+import { createStorage } from '{{ imports.root }}';
+import { createMemoryMetadataStore } from '{{ imports.memory }}';
+import { createLocalDriver } from '{{ imports.local }}';
+import { createStorageFetchHandler } from '{{ imports.fetch }}';
+
+export const storage = createStorage({
+  driver: createLocalDriver({ root: process.env.STORAGE_ROOT ?? './data/files' }),
+  metadata: createMemoryMetadataStore(),
+  signingSecret: process.env.STORAGE_SIGNING_SECRET!,
+});
+export const storageRoutes = createStorageFetchHandler({
+  storage,
+  basePath: '/files',
+  publicBaseUrl: process.env.STORAGE_PUBLIC_BASE_URL,
+});

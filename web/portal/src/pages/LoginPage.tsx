@@ -54,7 +54,9 @@ export function LoginPage() {
           {mutation.isPending ? "Signing in..." : "Sign in"}
         </button>
       </form>
-      <p className="mt-6 text-sm text-muted-foreground">Invited? Open the invitation link from your administrator.</p>
+      <p className="mt-6 text-sm text-muted-foreground">
+        Invited? Open the invitation link from your administrator. Forgot your password? Ask an instance administrator to issue a reset token.
+      </p>
     </AuthFrame>
   );
 }

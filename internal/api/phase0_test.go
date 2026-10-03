@@ -21,10 +21,7 @@ func testStore(t *testing.T) *store.Store {
 	t.Helper()
 	url := os.Getenv("LORELINK_TEST_DATABASE_URL")
 	if url == "" {
-		url = os.Getenv("LORELINK_DATABASE_URL")
-	}
-	if url == "" {
-		t.Skip("LORELINK_TEST_DATABASE_URL or LORELINK_DATABASE_URL is required")
+		t.Skip("LORELINK_TEST_DATABASE_URL is required (do not point this at a live instance)")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	t.Cleanup(cancel)
@@ -36,6 +33,10 @@ func testStore(t *testing.T) *store.Store {
 		st.Close()
 		t.Fatal(err)
 	}
+	if err := st.SeedASPEC(ctx); err != nil {
+		st.Close()
+		t.Fatal(err)
+	}
 	t.Cleanup(func() { _ = st.Close() })
 	return st
 }
@@ -43,7 +44,26 @@ func testStore(t *testing.T) *store.Store {
 func reset(t *testing.T, st *store.Store) {
 	t.Helper()
 	_, err := st.DB.Exec(`
+		DELETE FROM users_activity;
+		DELETE FROM api_keys_keys;
+		DELETE FROM api_keys_service_accounts;
+		DELETE FROM rbac_assignments;
+		DELETE FROM rbac_grants;
+		DELETE FROM auth_reset_tokens;
+		DELETE FROM auth_lockouts;
 		DELETE FROM audit_events;
+		DELETE FROM search_documents;
+		DELETE FROM publish_runs;
+		DELETE FROM doc_versions;
+		DELETE FROM edit_leases;
+		DELETE FROM webhook_events;
+		DELETE FROM jobs;
+		DELETE FROM project_bindings;
+		DELETE FROM git_connections;
+		DELETE FROM maintainer_snapshots;
+		DELETE FROM maintainer_mappings;
+		DELETE FROM redirects;
+		DELETE FROM api_tokens;
 		DELETE FROM projects;
 		DELETE FROM invitations;
 		DELETE FROM team_memberships;
@@ -87,13 +107,13 @@ func TestPhase0SetupAuthRBAC(t *testing.T) {
 	}
 
 	setup := map[string]string{
-		"instance_name":       "LoreLink Dev",
-		"public_url":          srv.URL,
-		"admin_name":          "Ada Admin",
-		"admin_email":         "ada@example.test",
-		"admin_password":      "super-secret-password",
-		"organisation_name":   "ASPEC",
-		"organisation_slug":   "aspec",
+		"instance_name":     "LoreLink Dev",
+		"public_url":        srv.URL,
+		"admin_name":        "Ada Admin",
+		"admin_email":       "ada@example.test",
+		"admin_password":    "super-secret-password",
+		"organisation_name": "ASPEC",
+		"organisation_slug": "aspec",
 	}
 	status, body := postJSON(t, srv.URL+"/api/v1/setup", setup, nil)
 	if status != http.StatusCreated {

@@ -8,6 +8,8 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -16,22 +18,35 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"lorelink.dev/lorelink/internal/access"
+	"lorelink.dev/lorelink/internal/aspecmod"
+	"lorelink.dev/lorelink/internal/connector"
 	"lorelink.dev/lorelink/internal/identity"
+	"lorelink.dev/lorelink/internal/maintainer"
+	"lorelink.dev/lorelink/internal/searchidx"
+	"lorelink.dev/lorelink/internal/secrets"
 	"lorelink.dev/lorelink/internal/store"
+	"lorelink.dev/lorelink/internal/workspace"
 )
 
 const (
-	sessionCookie   = "lorelink_session"
-	sessionTTL      = 14 * 24 * time.Hour
-	inviteTTL       = 7 * 24 * time.Hour
-	minPasswordLen  = 10
+	sessionCookie  = "lorelink_session"
+	sessionTTL     = 14 * 24 * time.Hour
+	inviteTTL      = 7 * 24 * time.Hour
+	minPasswordLen = 10
 )
 
 type Server struct {
-	Store  *store.Store
-	Log    *slog.Logger
-	Public string
-	ready  bool
+	Store        *store.Store
+	Log          *slog.Logger
+	Public       string
+	Cipher       *secrets.Cipher
+	Registry     *connector.Registry
+	Workspace    *workspace.Manager
+	Maintainer   *maintainer.Service
+	Index        *searchidx.Indexer
+	DataDir      string
+	APIKeyPepper []byte
+	ready        bool
 
 	setupMu sync.Mutex
 	loginMu sync.Mutex
@@ -77,6 +92,7 @@ func (s *Server) Handler() http.Handler {
 			r.Get("/instance/users", s.instanceUsers)
 			r.Get("/roles", s.roles)
 			r.Get("/orgs", s.orgs)
+			r.Post("/orgs", s.orgCreate)
 			r.Get("/orgs/{orgID}", s.orgGet)
 			r.Get("/orgs/{orgID}/members", s.orgMembers)
 			r.Post("/orgs/{orgID}/invitations", s.orgInvite)
@@ -84,6 +100,8 @@ func (s *Server) Handler() http.Handler {
 			r.Post("/orgs/{orgID}/projects", s.projectCreate)
 			r.Get("/orgs/{orgID}/activity", s.orgActivity)
 		})
+		s.mountASPEC(r)
+		s.mountPlatform(r)
 	})
 	return r
 }
@@ -114,12 +132,12 @@ func (s *Server) setupStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 type setupBody struct {
-	InstanceName   string `json:"instance_name"`
-	PublicURL      string `json:"public_url"`
-	AdminName      string `json:"admin_name"`
-	AdminEmail     string `json:"admin_email"`
-	AdminPassword  string `json:"admin_password"`
-	Organisation   string `json:"organisation_name"`
+	InstanceName     string `json:"instance_name"`
+	PublicURL        string `json:"public_url"`
+	AdminName        string `json:"admin_name"`
+	AdminEmail       string `json:"admin_email"`
+	AdminPassword    string `json:"admin_password"`
+	Organisation     string `json:"organisation_name"`
 	OrganisationSlug string `json:"organisation_slug"`
 }
 
@@ -197,12 +215,30 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_json", "invalid request body")
 		return
 	}
-	user, err := s.Store.GetUserByEmail(r.Context(), strings.TrimSpace(body.Email))
+	email := strings.ToLower(strings.TrimSpace(body.Email))
+	if locked, until, lerr := s.Store.IsLocked(r.Context(), email); lerr == nil && locked {
+		msg := "account is locked after too many failed sign-in attempts"
+		if until != nil {
+			msg += "; try again after " + until.UTC().Format(time.RFC3339)
+		}
+		writeError(w, http.StatusTooManyRequests, "locked", msg)
+		return
+	}
+	user, err := s.Store.GetUserByEmail(r.Context(), email)
 	if err != nil || !identity.VerifyPassword(body.Password, user.PasswordHash, user.PasswordSalt) || user.Status != "active" {
-		_ = s.Store.WriteAudit(r.Context(), store.AuditEvent{Action: "auth.login.failed", Target: strings.ToLower(strings.TrimSpace(body.Email)), IP: clientIP(r)})
+		if locked, until, ferr := s.Store.RecordLoginFailure(r.Context(), email, lockoutFails, lockoutFor); ferr == nil && locked {
+			msg := "account is locked after too many failed sign-in attempts"
+			if until != nil {
+				msg += "; try again after " + until.UTC().Format(time.RFC3339)
+			}
+			writeError(w, http.StatusTooManyRequests, "locked", msg)
+			return
+		}
+		_ = s.Store.WriteAudit(r.Context(), store.AuditEvent{Action: "auth.login.failed", Target: email, IP: clientIP(r)})
 		writeError(w, http.StatusUnauthorized, "invalid_credentials", "email or password is incorrect")
 		return
 	}
+	_ = s.Store.ClearLoginFailures(r.Context(), email)
 	raw, err := randomToken(32)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal", "could not create session")
@@ -267,7 +303,7 @@ func (s *Server) instanceUsers(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "forbidden", "instance user list requires instance administration")
 		return
 	}
-	users, err := s.Store.ListUsers(r.Context())
+	users, err := s.Store.ListUserAccounts(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal", "could not list users")
 		return
@@ -286,6 +322,35 @@ func (s *Server) roles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"roles": roles})
+}
+
+func (s *Server) orgCreate(w http.ResponseWriter, r *http.Request) {
+	user := userFrom(r.Context())
+	if !access.Has(user.InstanceCapabilities, access.CapInstanceAdmin) && !access.Has(user.InstanceCapabilities, access.CapOrgProjectsCreate) {
+		writeError(w, http.StatusForbidden, "forbidden", "creating an organisation requires instance.admin")
+		return
+	}
+	var body struct {
+		Name string `json:"name"`
+		Slug string `json:"slug"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_json", "invalid request body")
+		return
+	}
+	name := strings.TrimSpace(body.Name)
+	slug := slugify(firstNonEmpty(strings.TrimSpace(body.Slug), name))
+	if name == "" || slug == "" {
+		writeError(w, http.StatusBadRequest, "validation", "name is required")
+		return
+	}
+	org, err := s.Store.CreateOrganisation(r.Context(), store.Organisation{Name: name, Slug: slug}, user.ID, "Org Admin")
+	if err != nil {
+		writeError(w, http.StatusConflict, "conflict", "could not create organisation")
+		return
+	}
+	_ = s.Store.WriteAudit(r.Context(), store.AuditEvent{ActorUserID: &user.ID, OrgID: &org.ID, Action: "org.create", Target: org.Slug, IP: clientIP(r)})
+	writeJSON(w, http.StatusCreated, org)
 }
 
 func (s *Server) orgs(w http.ResponseWriter, r *http.Request) {
@@ -457,7 +522,31 @@ func (s *Server) projects(w http.ResponseWriter, r *http.Request) {
 	if items == nil {
 		items = []store.Project{}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"projects": items})
+	out := make([]map[string]any, 0, len(items))
+	for i := range items {
+		binding, berr := s.Store.GetBinding(r.Context(), items[i].ID)
+		if berr != nil && !errors.Is(berr, store.ErrNotFound) {
+			writeError(w, http.StatusInternalServerError, "internal", "could not list project bindings")
+			return
+		}
+		p := items[i]
+		out = append(out, map[string]any{
+			"id":             p.ID,
+			"org_id":         p.OrgID,
+			"name":           p.Name,
+			"slug":           p.Slug,
+			"description":    p.Description,
+			"visibility":     p.Visibility,
+			"docs_root":      p.DocsRoot,
+			"default_branch": p.DefaultBranch,
+			"publish_policy": p.PublishPolicy,
+			"host":           p.Host,
+			"base_path":      p.BasePath,
+			"created_at":     p.CreatedAt,
+			"binding":        publicBinding(binding),
+		})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"projects": out})
 }
 
 type projectBody struct {
@@ -596,17 +685,28 @@ func userFrom(ctx context.Context) *store.User {
 
 func (s *Server) requireSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		raw, err := sessionToken(r)
-		if err != nil {
-			writeError(w, http.StatusUnauthorized, "unauthenticated", "authentication required")
-			return
+		if raw, err := sessionToken(r); err == nil {
+			user, err := s.Store.SessionUser(r.Context(), store.HashToken(raw))
+			if err == nil && user.Status == "active" {
+				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userKey, user)))
+				return
+			}
 		}
-		user, err := s.Store.SessionUser(r.Context(), store.HashToken(raw))
-		if err != nil {
-			writeError(w, http.StatusUnauthorized, "unauthenticated", "authentication required")
-			return
+		if key := rawAPIKey(r); key != "" && len(s.APIKeyPepper) > 0 {
+			user, err := s.Store.UserByAPIKeyHash(r.Context(), aspecmod.HashKey(s.APIKeyPepper, key), clientIP(r))
+			if err == nil {
+				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userKey, user)))
+				return
+			}
 		}
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userKey, user)))
+		if tok := bearerToken(r); len(tok) > 0 {
+			user, err := s.Store.UserByAPIToken(r.Context(), store.HashToken(tok))
+			if err == nil && user.Status == "active" {
+				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userKey, user)))
+				return
+			}
+		}
+		writeError(w, http.StatusUnauthorized, "unauthenticated", "authentication required")
 	})
 }
 
@@ -674,6 +774,87 @@ func (s *Server) limit(name string, n int, d time.Duration) func(http.Handler) h
 	}
 }
 
+func (s *Server) projectActor(w http.ResponseWriter, r *http.Request, cap access.Capability) (orgActor, *store.Project, bool) {
+	actor, org, ok := s.orgActor(w, r, access.CapOrgView)
+	if !ok {
+		return orgActor{}, nil, false
+	}
+	p, err := s.Store.GetProject(r.Context(), chi.URLParam(r, "projectID"))
+	if err != nil || p.OrgID != org.ID {
+		writeError(w, http.StatusNotFound, "not_found", "project not found")
+		return orgActor{}, nil, false
+	}
+	if !actor.Actor.Can(cap) {
+		writeError(w, http.StatusForbidden, "forbidden", "missing capability "+string(cap))
+		return orgActor{}, nil, false
+	}
+	return actor, p, true
+}
+
+func publicBinding(b *store.ProjectBinding) any {
+	if b == nil {
+		return nil
+	}
+	return map[string]any{
+		"connection_id":   b.ConnectionID,
+		"repo_url":        b.RepoURL,
+		"repo_full_name":  b.RepoFullName,
+		"default_branch":  b.DefaultBranch,
+		"docs_root":       b.DocsRoot,
+		"generated_roots": b.GeneratedRoots,
+		"last_synced_sha": b.LastSyncedSHA,
+		"last_synced_at":  b.LastSyncedAt,
+		"poll_fallback":   b.PollFallback,
+		"status":          b.Status,
+		"status_error":    b.StatusError,
+		"webhook_id":      b.WebhookID,
+	}
+}
+
+func (s *Server) readPublishedOrWorkspace(p *store.Project, orgSlug, version, rel string) ([]byte, error) {
+	if s.DataDir != "" {
+		pub := filepath.Join(s.DataDir, "published", orgSlug, p.Slug, version, filepath.FromSlash(rel))
+		if b, err := os.ReadFile(pub); err == nil {
+			return b, nil
+		}
+	}
+	if s.Workspace == nil {
+		return nil, errors.New("not found")
+	}
+	b, err := s.Store.GetBinding(context.Background(), p.ID)
+	if err != nil {
+		return nil, err
+	}
+	return s.Workspace.ReadOwned(p, b, rel)
+}
+
+func rawAPIKey(r *http.Request) string {
+	if key := strings.TrimSpace(r.Header.Get("X-Api-Key")); key != "" {
+		return key
+	}
+	h := r.Header.Get("Authorization")
+	if !strings.HasPrefix(strings.ToLower(h), "bearer ") {
+		return ""
+	}
+	tok := strings.TrimSpace(h[7:])
+	if strings.HasPrefix(tok, aspecmod.DefaultKeyPrefix) {
+		return tok
+	}
+	return ""
+}
+
+func bearerToken(r *http.Request) []byte {
+	h := r.Header.Get("Authorization")
+	if !strings.HasPrefix(strings.ToLower(h), "bearer ") {
+		return nil
+	}
+	raw, err := hex.DecodeString(strings.TrimSpace(h[7:]))
+	if err != nil {
+		return nil
+	}
+	return raw
+}
+
 func sessionToken(r *http.Request) ([]byte, error) {
 	c, err := r.Cookie(sessionCookie)
 	if err != nil || c.Value == "" {
@@ -714,11 +895,16 @@ func publicUser(u *store.User) map[string]any {
 		return nil
 	}
 	return map[string]any{
-		"id":                     u.ID,
-		"email":                  u.Email,
-		"name":                   u.Name,
-		"status":                 u.Status,
-		"instance_capabilities":  u.InstanceCapabilities,
+		"id":                    u.ID,
+		"email":                 u.Email,
+		"name":                  u.Name,
+		"display_name":          firstNonEmpty(u.DisplayName, u.Name),
+		"status":                u.Status,
+		"instance_capabilities": u.InstanceCapabilities,
+		"suspend_reason":        u.SuspendReason,
+		"suspended_until":       u.SuspendedUntil,
+		"last_login_at":         u.LastLoginAt,
+		"created_at":            u.CreatedAt,
 	}
 }
 
@@ -727,11 +913,11 @@ func publicInstance(inst *store.Instance) map[string]any {
 		return nil
 	}
 	return map[string]any{
-		"id":               inst.ID,
-		"name":             inst.Name,
-		"public_base_url":  inst.PublicBaseURL,
-		"portal_enabled":   inst.PortalEnabled,
-		"setup_completed":  inst.SetupCompletedAt != nil,
+		"id":              inst.ID,
+		"name":            inst.Name,
+		"public_base_url": inst.PublicBaseURL,
+		"portal_enabled":  inst.PortalEnabled,
+		"setup_completed": inst.SetupCompletedAt != nil,
 	}
 }
 

@@ -1,0 +1,524 @@
+{
+  "$schema": "https://aspec.tech/schemas/module-manifest/v1.json",
+  "manifestVersion": 1,
+  "id": "aspec/storage",
+  "name": "Storage",
+  "summary": "Local and S3 file storage with quotas, signed URLs, integrity and tus uploads.",
+  "description": "Reusable file storage for Node.js applications. Streaming uploads with SHA-256, MIME sniffing, quotas, access control, HMAC or S3 presigned URLs, integrity verification and tus 1.0 resumable uploads. Drivers: local filesystem and S3-compatible object storage (tested with SeaweedFS).",
+  "version": "1.0.0",
+  "category": "data",
+  "tags": ["storage", "s3", "upload", "files", "tus"],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "ASPEC TECH",
+      "email": "modules@aspec.tech",
+      "url": "https://aspec.tech"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ASPEC-RACING-PTY-LTD/aspecdev",
+    "directory": "modules/storage"
+  },
+  "homepage": "https://aspec.tech/modules/aspec/storage",
+  "readme": "README.md",
+  "changelog": "CHANGELOG.md",
+  "languages": ["typescript", "javascript"],
+  "runtimes": [
+    {
+      "name": "node",
+      "range": ">=22.13.0"
+    }
+  ],
+  "frameworks": [
+    {
+      "id": "express",
+      "name": "Express",
+      "range": "^4.18.0 || ^5.0.0",
+      "entrypoint": "@aspec/storage/express",
+      "kind": "backend",
+      "tested": true,
+      "testedVersions": ["4.22.3", "5.2.1"]
+    },
+    {
+      "id": "fastify",
+      "name": "Fastify",
+      "range": "^5.0.0",
+      "entrypoint": "@aspec/storage/fastify",
+      "kind": "backend",
+      "tested": true,
+      "testedVersions": ["5.12.5"]
+    },
+    {
+      "id": "hono",
+      "name": "Hono",
+      "range": "^4.0.0",
+      "entrypoint": "@aspec/storage/hono",
+      "kind": "backend",
+      "tested": true,
+      "testedVersions": ["4.13.10"]
+    },
+    {
+      "id": "fetch",
+      "name": "Fetch",
+      "range": "*",
+      "entrypoint": "@aspec/storage/fetch",
+      "kind": "backend",
+      "tested": true,
+      "testedVersions": ["24.16.0"]
+    },
+    {
+      "id": "vitest",
+      "name": "Vitest",
+      "range": "^5.0.0",
+      "entrypoint": "@aspec/storage",
+      "kind": "testing",
+      "tested": true,
+      "testedVersions": ["5.0.2"]
+    }
+  ],
+  "databases": [
+    {
+      "id": "memory",
+      "tested": true
+    },
+    {
+      "id": "postgres",
+      "range": ">=14",
+      "entrypoint": "@aspec/storage/sql",
+      "tested": true,
+      "testedVersions": ["17"]
+    },
+    {
+      "id": "sqlite",
+      "range": ">=3.35",
+      "entrypoint": "@aspec/storage/sql",
+      "tested": true
+    }
+  ],
+  "services": [
+    {
+      "id": "s3",
+      "name": "S3-compatible object storage (tested against SeaweedFS)",
+      "optional": true,
+      "tested": true,
+      "testedVersions": ["4.48"]
+    }
+  ],
+  "platforms": {
+    "os": ["linux", "darwin", "windows"],
+    "arch": ["x64", "arm64"],
+    "tested": [
+      {
+        "os": "windows",
+        "arch": "x64",
+        "runtime": "node@24.16.0"
+      }
+    ]
+  },
+  "capabilities": [
+    {
+      "id": "file-upload-download",
+      "summary": "Streaming uploads and downloads with ranges."
+    },
+    {
+      "id": "validation-quotas",
+      "summary": "MIME sniffing, size limits and quotas."
+    },
+    {
+      "id": "signed-urls",
+      "summary": "HMAC and S3 presigned temporary URLs."
+    },
+    {
+      "id": "resumable-uploads",
+      "summary": "tus 1.0 resumable uploads."
+    }
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [],
+    "peer": []
+  },
+  "compatibility": {
+    "conflicts": [],
+    "cli": ">=0.1.0"
+  },
+  "packages": {
+    "npm": {
+      "name": "@aspec/storage",
+      "entrypoints": {
+        ".": "Portable core",
+        "./memory": "In-memory metadata store",
+        "./sql": "SQL metadata store and migrations",
+        "./local": "Local filesystem driver",
+        "./s3": "S3-compatible driver",
+        "./express": "Express adapter",
+        "./fastify": "Fastify adapter",
+        "./hono": "Hono adapter",
+        "./fetch": "Fetch adapter"
+      },
+      "dependencyType": "prod"
+    }
+  },
+  "install": {
+    "modes": ["package", "vendor"],
+    "defaultMode": "package",
+    "requirements": ["Node.js 22.13 or newer"],
+    "vendor": {
+      "source": "src",
+      "jsSource": "dist"
+    }
+  },
+  "configuration": {
+    "schema": "config.schema.json",
+    "env": {
+      "required": [
+        {
+          "name": "STORAGE_SIGNING_SECRET",
+          "description": "HMAC secret for adapter signed URLs (32+ bytes).",
+          "secret": true
+        }
+      ],
+      "optional": [
+        {
+          "name": "STORAGE_ROOT",
+          "description": "Local driver root directory."
+        },
+        {
+          "name": "STORAGE_S3_BUCKET",
+          "description": "S3 bucket name."
+        },
+        {
+          "name": "STORAGE_S3_ENDPOINT",
+          "description": "S3-compatible endpoint URL."
+        },
+        {
+          "name": "STORAGE_S3_ACCESS_KEY",
+          "description": "S3 access key.",
+          "secret": true
+        },
+        {
+          "name": "STORAGE_S3_SECRET_KEY",
+          "description": "S3 secret key.",
+          "secret": true
+        },
+        {
+          "name": "STORAGE_PUBLIC_BASE_URL",
+          "description": "Public base URL for signed and tus Location headers."
+        }
+      ]
+    },
+    "explorer": {
+      "parameters": [
+        {
+          "id": "framework",
+          "label": "Framework",
+          "type": "select",
+          "default": "express",
+          "options": [
+            {
+              "value": "none",
+              "label": "No HTTP"
+            },
+            {
+              "value": "express",
+              "label": "Express"
+            },
+            {
+              "value": "fastify",
+              "label": "Fastify"
+            },
+            {
+              "value": "hono",
+              "label": "Hono"
+            },
+            {
+              "value": "fetch",
+              "label": "Fetch"
+            }
+          ]
+        },
+        {
+          "id": "driver",
+          "label": "Driver",
+          "type": "select",
+          "default": "local",
+          "options": [
+            {
+              "value": "local",
+              "label": "Local filesystem"
+            },
+            {
+              "value": "s3",
+              "label": "S3-compatible"
+            }
+          ]
+        },
+        {
+          "id": "metadata",
+          "label": "Metadata store",
+          "type": "select",
+          "default": "memory",
+          "options": [
+            {
+              "value": "memory",
+              "label": "In memory"
+            },
+            {
+              "value": "sqlite",
+              "label": "SQLite"
+            },
+            {
+              "value": "postgres",
+              "label": "PostgreSQL"
+            }
+          ]
+        },
+        {
+          "id": "maxBytes",
+          "label": "Max upload bytes",
+          "type": "number",
+          "default": 26214400
+        }
+      ],
+      "outputs": [
+        {
+          "id": "setup",
+          "label": "storage.setup.ts",
+          "language": "typescript",
+          "filename": "src/aspec/storage.setup.ts",
+          "template": "templates/explorer/setup.ts.tmpl"
+        },
+        {
+          "id": "env",
+          "label": ".env",
+          "language": "dotenv",
+          "template": "templates/explorer/env.tmpl"
+        }
+      ]
+    }
+  },
+  "integration": {
+    "targets": [
+      {
+        "id": "express-typescript",
+        "label": "Express (TypeScript)",
+        "language": "typescript",
+        "framework": "express",
+        "automated": true,
+        "docs": "frameworks/express",
+        "files": [
+          {
+            "template": "templates/express/setup.ts.tmpl",
+            "path": "{{ srcDir }}/aspec/storage.setup.ts",
+            "description": "Creates storage and Express middleware."
+          }
+        ],
+        "packages": [
+          {
+            "name": "express",
+            "range": "^4.18.0 || ^5.0.0"
+          }
+        ],
+        "env": ["STORAGE_SIGNING_SECRET"],
+        "steps": ["Mount storageRoutes at /files without a body parser in front."]
+      },
+      {
+        "id": "fastify-typescript",
+        "label": "Fastify (TypeScript)",
+        "language": "typescript",
+        "framework": "fastify",
+        "automated": true,
+        "docs": "frameworks/fastify",
+        "files": [
+          {
+            "template": "templates/fastify/setup.ts.tmpl",
+            "path": "{{ srcDir }}/aspec/storage.setup.ts",
+            "description": "Creates storage and Fastify plugin export."
+          }
+        ],
+        "packages": [
+          {
+            "name": "fastify",
+            "range": "^5.0.0"
+          }
+        ],
+        "env": ["STORAGE_SIGNING_SECRET"],
+        "steps": ["Call storageFastifyPlugin(app, { storage, publicBaseUrl })."]
+      },
+      {
+        "id": "hono-typescript",
+        "label": "Hono (TypeScript)",
+        "language": "typescript",
+        "framework": "hono",
+        "automated": true,
+        "docs": "frameworks/hono",
+        "files": [
+          {
+            "template": "templates/hono/setup.ts.tmpl",
+            "path": "{{ srcDir }}/aspec/storage.setup.ts",
+            "description": "Creates storage and Hono handler."
+          }
+        ],
+        "packages": [
+          {
+            "name": "hono",
+            "range": "^4.0.0"
+          }
+        ],
+        "env": ["STORAGE_SIGNING_SECRET"],
+        "steps": ["Mount storageRoutes on /files/*."]
+      },
+      {
+        "id": "fetch-typescript",
+        "label": "Fetch handler (TypeScript)",
+        "language": "typescript",
+        "framework": "fetch",
+        "automated": true,
+        "docs": "frameworks/fetch",
+        "files": [
+          {
+            "template": "templates/fetch/setup.ts.tmpl",
+            "path": "{{ srcDir }}/aspec/storage.setup.ts",
+            "description": "Creates storage and Fetch handler."
+          }
+        ],
+        "packages": [],
+        "env": ["STORAGE_SIGNING_SECRET"],
+        "steps": ["Export storageRoutes from a Fetch-compatible route."]
+      },
+      {
+        "id": "generic-typescript",
+        "label": "Any TypeScript project",
+        "language": "typescript",
+        "automated": false,
+        "docs": "integrate",
+        "files": [
+          {
+            "template": "templates/generic-typescript/setup.ts.tmpl",
+            "path": "{{ srcDir }}/aspec/storage.setup.ts",
+            "description": "Creates the storage service."
+          }
+        ],
+        "steps": ["Call storage.upload / storage.download from your application."]
+      },
+      {
+        "id": "generic-javascript",
+        "label": "Any JavaScript project",
+        "language": "javascript",
+        "automated": false,
+        "docs": "integrate",
+        "files": [
+          {
+            "template": "templates/generic-javascript/setup.js.tmpl",
+            "path": "{{ srcDir }}/aspec/storage.setup.js",
+            "description": "Creates the storage service."
+          }
+        ],
+        "steps": ["Call storage.upload / storage.download from your application."]
+      }
+    ]
+  },
+  "validation": {
+    "checks": [
+      {
+        "type": "package",
+        "name": "@aspec/storage",
+        "range": "^1.0.0"
+      },
+      {
+        "type": "import",
+        "specifier": "@aspec/storage"
+      },
+      {
+        "type": "env",
+        "names": ["STORAGE_SIGNING_SECRET"]
+      }
+    ],
+    "commands": [
+      {
+        "run": ["node", "-e", "import('@aspec/storage')"],
+        "description": "Imports the module entrypoint."
+      }
+    ],
+    "docs": "testing"
+  },
+  "uninstall": {
+    "steps": [
+      "Remove HTTP mounts.",
+      "Delete local files or S3 objects.",
+      "Drop storage_* tables if desired."
+    ],
+    "dataRetention": "Objects and SQL rows are not removed automatically.",
+    "docs": "uninstall"
+  },
+  "migrations": {
+    "docs": "migration",
+    "database": {
+      "dialects": ["postgres", "sqlite"],
+      "entrypoint": "@aspec/storage/sql",
+      "tables": [
+        "storage_files",
+        "storage_upload_sessions",
+        "storage_quota_usage",
+        "storage_schema_migrations"
+      ]
+    }
+  },
+  "docs": {
+    "sections": {
+      "summary": "docs/summary.md",
+      "install": "docs/install.md",
+      "configure": "docs/configure.md",
+      "integrate": "docs/integrate.md",
+      "frameworks/express": "docs/frameworks/express.md",
+      "frameworks/fastify": "docs/frameworks/fastify.md",
+      "frameworks/hono": "docs/frameworks/hono.md",
+      "frameworks/fetch": "docs/frameworks/fetch.md",
+      "frameworks/vitest": "docs/frameworks/vitest.md",
+      "api": "docs/api.md",
+      "examples": "docs/examples.md",
+      "testing": "docs/testing.md",
+      "migration": "docs/migration.md",
+      "troubleshooting": "docs/troubleshooting.md",
+      "security": "docs/security.md",
+      "uninstall": "docs/uninstall.md",
+      "ai": "docs/ai.md"
+    }
+  },
+  "security": {
+    "contact": "security@aspec.tech",
+    "policy": "https://github.com/ASPEC-RACING-PTY-LTD/aspecdev/security/policy",
+    "sensitiveData": ["files", "secrets", "credentials"],
+    "notes": [
+      "Keys are validated against traversal.",
+      "HMAC signatures verified in constant time.",
+      "Scriptable MIME types are rejected by default."
+    ],
+    "threatModel": "security"
+  },
+  "ai": {
+    "summary": "Use createStorage with local or S3 drivers for uploads, downloads, quotas and tus.",
+    "useWhen": ["File uploads, signed URLs or resumable uploads are required."],
+    "avoidWhen": ["One-off filesystem writes without metadata."],
+    "keywords": ["storage", "s3", "upload", "tus", "files"],
+    "entrypoints": [
+      {
+        "name": "createStorage",
+        "import": "@aspec/storage",
+        "description": "Creates the storage service."
+      },
+      {
+        "name": "createLocalDriver",
+        "import": "@aspec/storage/local",
+        "description": "Local filesystem driver."
+      },
+      {
+        "name": "createS3Driver",
+        "import": "@aspec/storage/s3",
+        "description": "S3-compatible driver."
+      }
+    ]
+  }
+}

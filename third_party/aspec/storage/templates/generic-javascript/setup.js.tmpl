@@ -1,0 +1,15 @@
+{{#if moduleSystem == "commonjs"}}
+const { createStorage } = require('{{ imports.root }}');
+const { createMemoryMetadataStore } = require('{{ imports.memory }}');
+const { createLocalDriver } = require('{{ imports.local }}');
+{{else}}
+import { createStorage } from '{{ imports.root }}';
+import { createMemoryMetadataStore } from '{{ imports.memory }}';
+import { createLocalDriver } from '{{ imports.local }}';
+{{/if}}
+
+export const storage = createStorage({
+  driver: createLocalDriver({ root: process.env.STORAGE_ROOT ?? './data/files' }),
+  metadata: createMemoryMetadataStore(),
+  signingSecret: process.env.STORAGE_SIGNING_SECRET,
+});

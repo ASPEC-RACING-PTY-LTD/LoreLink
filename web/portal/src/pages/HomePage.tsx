@@ -1,15 +1,26 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { useOutletContext } from "react-router-dom";
-import { api } from "../api";
+import { Link, useNavigate, useOutletContext } from "react-router-dom";
+import { api, type Project } from "../api";
 import { Field } from "../ui/Field";
 import { IconPlus } from "../ui/icons";
 import { PageHeader } from "../ui/PageHeader";
+import { ErrorAlert } from "../ui/states";
 import type { ShellContext } from "./Shell";
+
+function bindingLabel(project: Project) {
+  const binding = project.binding;
+  if (!binding) return "Not connected";
+  if (binding.status_error) return binding.status || "Error";
+  if (binding.status) return binding.status;
+  if (binding.repo_full_name || binding.repo_url) return "Connected";
+  return "Not connected";
+}
 
 export function HomePage() {
   const { orgID, org } = useOutletContext<ShellContext>();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const projects = useQuery({
     queryKey: ["projects", orgID],
     queryFn: () => api.projects(orgID),
@@ -23,11 +34,12 @@ export function HomePage() {
 
   const create = useMutation({
     mutationFn: () => api.createProject(orgID, { name, description, visibility }),
-    onSuccess: async () => {
+    onSuccess: async (project) => {
       setOpen(false);
       setName("");
       setDescription("");
       await qc.invalidateQueries({ queryKey: ["projects", orgID] });
+      if (project.id) navigate(`/projects/${project.id}`);
     },
     onError: (err: Error) => setError(err.message),
   });
@@ -49,8 +61,8 @@ export function HomePage() {
       <PageHeader
         crumbs={[org?.name ?? "Organisation", "Projects"]}
         title="Projects"
-        lede="Each project is a named documentation workspace. Reserve a name and visibility now."
-        action={projects.data && projects.data.projects.length > 0 ? createButton : undefined}
+        lede="Each project is a named documentation workspace. Bind a Git repository, edit LoreMark, and publish from the project page."
+        action={orgID ? createButton : undefined}
       />
 
       {projects.isLoading ? (
@@ -60,16 +72,29 @@ export function HomePage() {
         </div>
       ) : null}
 
-      {projects.data && projects.data.projects.length === 0 ? (
+      {!orgID ? (
+        <section className="panel mt-8 px-6 py-10 sm:px-10">
+          <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">Organisation</p>
+          <h2 className="mt-3 font-serif text-3xl font-semibold tracking-tight">No organisation selected</h2>
+          <p className="page-lede mt-3">
+            This account is not in an organisation yet. Create one from the header if you are an instance administrator.
+          </p>
+        </section>
+      ) : null}
+
+      {orgID && projects.data && projects.data.projects.length === 0 ? (
         <section className="panel mt-8 px-6 py-10 sm:px-10">
           <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">Get started</p>
           <h2 className="mt-3 font-serif text-3xl font-semibold tracking-tight">No projects yet</h2>
           <p className="page-lede mt-3">
-            Create the first workspace for this organisation. Git binding and publishing are not part of this phase.
+            Create the first workspace for this organisation. Git binding, editing, and publishing are available on the
+            project page.
           </p>
           <div className="mt-8">{createButton}</div>
         </section>
       ) : null}
+
+      {projects.isError ? <ErrorAlert>{projects.error.message}</ErrorAlert> : null}
 
       {projects.data && projects.data.projects.length > 0 ? (
         <div className="panel mt-8 overflow-x-auto">
@@ -86,13 +111,15 @@ export function HomePage() {
               {projects.data.projects.map((p) => (
                 <tr key={p.id}>
                   <td>
-                    <div className="font-medium">{p.name}</div>
+                    <Link to={`/projects/${p.id}`} className="font-medium hover:underline">
+                      {p.name}
+                    </Link>
                     <div className="mt-1 text-sm text-muted-foreground">{p.description || "No description"}</div>
                   </td>
                   <td>
                     <span className="badge">{p.visibility}</span>
                   </td>
-                  <td className="text-sm text-muted-foreground">Not connected</td>
+                  <td className="text-sm text-muted-foreground">{bindingLabel(p)}</td>
                   <td className="font-mono text-sm">{p.docs_root}</td>
                 </tr>
               ))}
@@ -108,7 +135,7 @@ export function HomePage() {
               Create project
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Reserve the project name and visibility. Repository connection comes later.
+              Reserve the project name and visibility. Bind a Git repository from the project page after it is created.
             </p>
             {error ? (
               <div role="alert" className="alert alert-error mt-4">

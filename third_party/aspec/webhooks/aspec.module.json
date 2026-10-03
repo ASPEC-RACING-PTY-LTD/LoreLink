@@ -1,0 +1,393 @@
+{
+  "$schema": "https://aspec.tech/schemas/module-manifest/v1.json",
+  "manifestVersion": 1,
+  "id": "aspec/webhooks",
+  "name": "Webhooks",
+  "summary": "Outgoing and incoming webhooks with Standard Webhooks signing, SSRF-safe delivery, retries and verification.",
+  "description": "Reusable webhook infrastructure for Node.js. Outgoing subscriptions with event wildcards, payload filters, AES-GCM encrypted secrets, Standard Webhooks signing and rotation, SSRF protection with DNS pinning, retries, delivery history, auto-disable and redelivery. Incoming verification for Standard Webhooks, GitHub, Stripe and generic HMAC with replay protection. Express, Fastify, Hono and Fetch admin routers.",
+  "version": "1.0.1",
+  "category": "messaging",
+  "tags": ["webhooks", "signing", "ssrf", "http"],
+  "license": "MIT",
+  "maintainers": [
+    { "name": "ASPEC TECH", "email": "modules@aspec.tech", "url": "https://aspec.tech" }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ASPEC-RACING-PTY-LTD/aspecdev",
+    "directory": "modules/webhooks"
+  },
+  "homepage": "https://aspec.tech/modules/aspec/webhooks",
+  "readme": "README.md",
+  "changelog": "CHANGELOG.md",
+  "languages": ["typescript", "javascript"],
+  "runtimes": [{ "name": "node", "range": ">=22.13.0" }],
+  "frameworks": [
+    {
+      "id": "express",
+      "name": "Express",
+      "range": "^4.18.0 || ^5.0.0",
+      "entrypoint": "@aspec/webhooks/express",
+      "kind": "backend",
+      "tested": true,
+      "testedVersions": ["4.22.3", "5.2.1"]
+    },
+    {
+      "id": "fastify",
+      "name": "Fastify",
+      "range": "^5.0.0",
+      "entrypoint": "@aspec/webhooks/fastify",
+      "kind": "backend",
+      "tested": true,
+      "testedVersions": ["5.12.5"]
+    },
+    {
+      "id": "hono",
+      "name": "Hono",
+      "range": "^4.0.0",
+      "entrypoint": "@aspec/webhooks/hono",
+      "kind": "backend",
+      "tested": true,
+      "testedVersions": ["4.13.10"]
+    },
+    {
+      "id": "fetch",
+      "name": "Fetch API",
+      "range": ">=1.0.0",
+      "entrypoint": "@aspec/webhooks/fetch",
+      "kind": "backend",
+      "tested": true,
+      "testedVersions": ["24.16.0"]
+    }
+  ],
+  "databases": [
+    { "id": "memory", "tested": true },
+    {
+      "id": "postgres",
+      "range": ">=14",
+      "entrypoint": "@aspec/webhooks/sql",
+      "tested": true,
+      "testedVersions": ["17"]
+    },
+    {
+      "id": "sqlite",
+      "range": ">=3.35",
+      "entrypoint": "@aspec/webhooks/sql",
+      "tested": true
+    }
+  ],
+  "services": [],
+  "platforms": {
+    "os": ["linux", "darwin", "windows"],
+    "arch": ["x64", "arm64"],
+    "tested": [{ "os": "windows", "arch": "x64", "runtime": "node@24.16.0" }]
+  },
+  "capabilities": [
+    {
+      "id": "outgoing-webhooks",
+      "summary": "Subscriptions, signed delivery, retries and history."
+    },
+    {
+      "id": "incoming-verification",
+      "summary": "Standard Webhooks, GitHub, Stripe and HMAC verification."
+    },
+    {
+      "id": "ssrf-protection",
+      "summary": "DNS pinning and private range blocking for outbound URLs."
+    },
+    { "id": "secret-rotation", "summary": "Multi-secret signing with AES-GCM storage." },
+    { "id": "admin-api", "summary": "HTTP admin routers.", "optional": true }
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      {
+        "id": "aspec/jobs",
+        "range": "^1.0.0",
+        "reason": "Background delivery through the JobQueue port."
+      },
+      { "id": "aspec/db", "range": "^1.0.0", "reason": "SqlClient for the SQL store." },
+      { "id": "aspec/rbac", "range": "^1.0.0", "reason": "PermissionChecker for admin routers." }
+    ],
+    "peer": []
+  },
+  "compatibility": { "conflicts": [], "cli": ">=0.1.0" },
+  "packages": {
+    "npm": {
+      "name": "@aspec/webhooks",
+      "entrypoints": {
+        ".": "Portable core",
+        "./memory": "In-memory store and seen-id store",
+        "./sql": "SQL store, migrations and seen-id store",
+        "./express": "Express admin router and verify middleware",
+        "./fastify": "Fastify plugin and raw body parser",
+        "./hono": "Hono admin app and verify middleware",
+        "./fetch": "Fetch admin handler and verify helper"
+      },
+      "dependencyType": "prod"
+    }
+  },
+  "install": {
+    "modes": ["package", "vendor"],
+    "defaultMode": "package",
+    "requirements": ["Node.js 22.13 or newer", "WEBHOOKS_ENCRYPTION_KEY"],
+    "vendor": { "source": "src", "jsSource": "dist" }
+  },
+  "configuration": {
+    "schema": "config.schema.json",
+    "env": {
+      "required": [
+        {
+          "name": "WEBHOOKS_ENCRYPTION_KEY",
+          "description": "32-byte AES-256-GCM key (base64 or 64-char hex).",
+          "secret": true
+        }
+      ],
+      "optional": []
+    },
+    "explorer": {
+      "parameters": [
+        {
+          "id": "framework",
+          "label": "Framework",
+          "type": "select",
+          "default": "express",
+          "options": [
+            { "value": "express", "label": "Express" },
+            { "value": "fastify", "label": "Fastify" },
+            { "value": "hono", "label": "Hono" },
+            { "value": "fetch", "label": "Fetch API" },
+            { "value": "none", "label": "No HTTP admin" }
+          ]
+        },
+        {
+          "id": "storage",
+          "label": "Storage",
+          "type": "select",
+          "default": "memory",
+          "options": [
+            { "value": "memory", "label": "In memory" },
+            { "value": "postgres", "label": "PostgreSQL" },
+            { "value": "sqlite", "label": "SQLite" }
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "id": "setup",
+          "label": "webhooks.setup.ts",
+          "language": "typescript",
+          "filename": "src/aspec/webhooks.setup.ts",
+          "template": "templates/explorer/setup.ts.tmpl"
+        },
+        {
+          "id": "env",
+          "label": ".env",
+          "language": "dotenv",
+          "template": "templates/explorer/env.tmpl"
+        }
+      ]
+    }
+  },
+  "integration": {
+    "targets": [
+      {
+        "id": "express-typescript",
+        "label": "Express (TypeScript)",
+        "language": "typescript",
+        "framework": "express",
+        "automated": true,
+        "docs": "frameworks/express",
+        "files": [
+          {
+            "template": "templates/express/setup.ts.tmpl",
+            "path": "{{ srcDir }}/aspec/webhooks.setup.ts",
+            "description": "Creates the webhooks service and Express admin router."
+          }
+        ],
+        "packages": [{ "name": "express", "range": "^4.18.0 || ^5.0.0" }],
+        "env": ["WEBHOOKS_ENCRYPTION_KEY"],
+        "steps": ["Mount webhooksAdminRouter and wire resolveSubject."]
+      },
+      {
+        "id": "fastify-typescript",
+        "label": "Fastify (TypeScript)",
+        "language": "typescript",
+        "framework": "fastify",
+        "automated": true,
+        "docs": "frameworks/fastify",
+        "files": [
+          {
+            "template": "templates/fastify/setup.ts.tmpl",
+            "path": "{{ srcDir }}/aspec/webhooks.setup.ts",
+            "description": "Creates the webhooks service and Fastify plugin options."
+          }
+        ],
+        "packages": [{ "name": "fastify", "range": "^5.0.0" }],
+        "env": ["WEBHOOKS_ENCRYPTION_KEY"],
+        "steps": ["Register webhooksAdminFastifyPlugin with webhooksPluginOpts."]
+      },
+      {
+        "id": "hono-typescript",
+        "label": "Hono (TypeScript)",
+        "language": "typescript",
+        "framework": "hono",
+        "automated": true,
+        "docs": "frameworks/hono",
+        "files": [
+          {
+            "template": "templates/hono/setup.ts.tmpl",
+            "path": "{{ srcDir }}/aspec/webhooks.setup.ts",
+            "description": "Creates the webhooks service and Hono admin app."
+          }
+        ],
+        "packages": [{ "name": "hono", "range": "^4.0.0" }],
+        "env": ["WEBHOOKS_ENCRYPTION_KEY"],
+        "steps": ["Mount webhooksAdminApp with app.route."]
+      },
+      {
+        "id": "fetch-typescript",
+        "label": "Fetch handler (TypeScript)",
+        "language": "typescript",
+        "framework": "fetch",
+        "automated": true,
+        "docs": "frameworks/fetch",
+        "files": [
+          {
+            "template": "templates/fetch/setup.ts.tmpl",
+            "path": "{{ srcDir }}/aspec/webhooks.setup.ts",
+            "description": "Creates the webhooks service and Fetch admin handler."
+          }
+        ],
+        "env": ["WEBHOOKS_ENCRYPTION_KEY"],
+        "steps": ["Export webhooksAdminHandler from your route module."]
+      },
+      {
+        "id": "generic-typescript",
+        "label": "Any TypeScript project",
+        "language": "typescript",
+        "automated": true,
+        "docs": "integrate",
+        "files": [
+          {
+            "template": "templates/generic/setup.ts.tmpl",
+            "path": "{{ srcDir }}/aspec/webhooks.setup.ts",
+            "description": "Creates a core webhooks service."
+          }
+        ],
+        "env": ["WEBHOOKS_ENCRYPTION_KEY"],
+        "steps": ["Call createSubscription and publish."]
+      },
+      {
+        "id": "generic-javascript",
+        "label": "Any JavaScript project",
+        "language": "javascript",
+        "automated": true,
+        "docs": "integrate",
+        "files": [
+          {
+            "template": "templates/generic/setup.ts.tmpl",
+            "path": "{{ srcDir }}/aspec/webhooks.setup.js",
+            "description": "Creates a core webhooks service (ESM or CommonJS)."
+          }
+        ],
+        "env": ["WEBHOOKS_ENCRYPTION_KEY"],
+        "steps": ["Import or require the setup file."]
+      }
+    ]
+  },
+  "validation": {
+    "checks": [
+      { "type": "package", "name": "@aspec/webhooks", "range": "^1.0.0" },
+      { "type": "import", "specifier": "@aspec/webhooks" },
+      { "type": "env", "names": ["WEBHOOKS_ENCRYPTION_KEY"] }
+    ],
+    "commands": [
+      {
+        "run": ["node", "-e", "import('@aspec/webhooks')"],
+        "description": "Imports the module entrypoint."
+      }
+    ],
+    "docs": "testing"
+  },
+  "uninstall": {
+    "steps": [
+      "Unmount admin routers and unregister webhooks.deliver.",
+      "Remove WEBHOOKS_ENCRYPTION_KEY.",
+      "Drop webhooks_* tables if the SQL store was used."
+    ],
+    "dataRetention": "SQL tables are not dropped automatically.",
+    "docs": "uninstall"
+  },
+  "migrations": {
+    "docs": "migration",
+    "database": {
+      "dialects": ["postgres", "sqlite"],
+      "entrypoint": "@aspec/webhooks/sql",
+      "tables": [
+        "webhooks_subscriptions",
+        "webhooks_events",
+        "webhooks_deliveries",
+        "webhooks_delivery_attempts",
+        "webhooks_seen_ids",
+        "webhooks_schema_migrations"
+      ]
+    }
+  },
+  "docs": {
+    "sections": {
+      "summary": "docs/summary.md",
+      "install": "docs/install.md",
+      "configure": "docs/configure.md",
+      "integrate": "docs/integrate.md",
+      "frameworks/express": "docs/frameworks/express.md",
+      "frameworks/fastify": "docs/frameworks/fastify.md",
+      "frameworks/hono": "docs/frameworks/hono.md",
+      "frameworks/fetch": "docs/frameworks/fetch.md",
+      "api": "docs/api.md",
+      "examples": "docs/examples.md",
+      "testing": "docs/testing.md",
+      "migration": "docs/migration.md",
+      "troubleshooting": "docs/troubleshooting.md",
+      "security": "docs/security.md",
+      "uninstall": "docs/uninstall.md",
+      "ai": "docs/ai.md"
+    }
+  },
+  "security": {
+    "contact": "security@aspec.tech",
+    "policy": "https://github.com/ASPEC-RACING-PTY-LTD/aspecdev/security/policy",
+    "sensitiveData": ["secrets", "credentials"],
+    "notes": [
+      "Webhook secrets are encrypted at rest and returned in plaintext only at creation or rotation.",
+      "SSRF protections are enabled by default."
+    ],
+    "threatModel": "security"
+  },
+  "ai": {
+    "summary": "Use createWebhooks() for signed outbound delivery and verifyWebhookSignature() for inbound verification.",
+    "useWhen": [
+      "You need to deliver signed events to customer HTTPS endpoints.",
+      "You need to verify Standard Webhooks, GitHub, Stripe or HMAC webhooks."
+    ],
+    "avoidWhen": ["You only need email or in-app notifications."],
+    "keywords": ["webhooks", "signing", "ssrf", "standard-webhooks"],
+    "entrypoints": [
+      {
+        "name": "createWebhooks",
+        "import": "@aspec/webhooks",
+        "description": "Creates the outbound service."
+      },
+      {
+        "name": "verifyWebhookSignature",
+        "import": "@aspec/webhooks",
+        "description": "Verifies inbound webhook signatures."
+      },
+      {
+        "name": "createWebhooksAdminRouter",
+        "import": "@aspec/webhooks/express",
+        "description": "Express admin router."
+      }
+    ]
+  }
+}

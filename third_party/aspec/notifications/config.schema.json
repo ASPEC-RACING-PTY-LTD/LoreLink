@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Notifications module configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "storage": {
+      "enum": ["memory", "postgres", "sqlite"],
+      "default": "memory",
+      "description": "Persistence backend for in-app notifications, deliveries and preferences."
+    },
+    "tablePrefix": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,40}$",
+      "default": "notifications_",
+      "description": "SQL table name prefix."
+    },
+    "smtp": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "host": { "type": "string", "minLength": 1 },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "secure": { "type": "boolean", "default": false },
+        "requireTLS": { "type": "boolean", "default": false },
+        "pool": { "type": "boolean", "default": false },
+        "from": { "type": "string", "minLength": 3 }
+      }
+    },
+    "retry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "maxAttempts": { "type": "integer", "minimum": 1, "maximum": 50, "default": 5 },
+        "initialDelayMs": { "type": "number", "minimum": 0, "default": 1000 },
+        "multiplier": { "type": "number", "minimum": 1, "default": 2 },
+        "maxDelayMs": { "type": "number", "minimum": 0, "default": 60000 },
+        "jitter": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.5 }
+      }
+    },
+    "inApp": { "type": "boolean", "default": true },
+    "sendTimeoutMs": { "type": "number", "minimum": 1, "default": 30000 },
+    "retainContent": { "enum": ["until-complete", "always"], "default": "until-complete" }
+  }
+}

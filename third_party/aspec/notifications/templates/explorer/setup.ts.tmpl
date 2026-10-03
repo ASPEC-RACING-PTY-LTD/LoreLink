@@ -1,0 +1,82 @@
+import { createNotifications, createEmailChannel, createTemplateRegistry } from '{{ imports.root }}';
+{{#if storage == "memory"}}
+import { createMemoryStore } from '{{ imports.memory }}';
+{{else}}
+import { createSqlStore, migrate } from '{{ imports.sql }}';
+{{/if}}
+{{#if smtp}}
+import { createSmtpTransport, smtpOptionsFromEnv } from '{{ imports.smtp }}';
+{{/if}}
+{{#if framework == "express"}}
+import { createNotificationsRouter } from '{{ imports.express }}';
+{{/if}}
+{{#if framework == "fastify"}}
+import { notificationsFastifyPlugin } from '{{ imports.fastify }}';
+{{/if}}
+{{#if framework == "hono"}}
+import { createNotificationsHono } from '{{ imports.hono }}';
+{{/if}}
+{{#if framework == "fetch"}}
+import { createNotificationsFetchHandler } from '{{ imports.fetch }}';
+{{/if}}
+
+{{#if storage == "memory"}}
+const store = createMemoryStore();
+{{else}}
+// Provide a SqlClient (for example from @aspec/db) before calling migrate.
+import type { SqlClient } from '{{ imports.root }}';
+declare const sql: SqlClient;
+await migrate(sql);
+const store = createSqlStore(sql);
+{{/if}}
+
+{{#if smtp}}
+const transport = createSmtpTransport(smtpOptionsFromEnv());
+const channels = { email: createEmailChannel(transport) };
+{{else}}
+import { createConsoleChannel } from '{{ imports.root }}';
+const channels = { console: createConsoleChannel() };
+{{/if}}
+
+const templates = createTemplateRegistry({
+  email: [{ id: 'welcome', subject: 'Welcome \{{ name }}', text: 'Hello \{{ name }}', requiredVariables: ['name'] }],
+  notifications: [{ id: 'welcome', title: 'Welcome', body: 'Hello \{{ name }}' }],
+});
+
+export const notifications = createNotifications({
+  store,
+  templates,
+  channels,
+  preferences: {
+    categories: {
+      security: { mandatory: true, channels: ['email', 'in-app'] },
+      account: { mandatory: true, channels: ['email', 'in-app'] },
+    },
+  },
+});
+
+export const mailer = notifications.mailer;
+
+{{#if framework == "express"}}
+export const notificationsRouter = createNotificationsRouter(notifications, {
+  resolveUser: (req) => (req as { user?: { id: string } }).user?.id,
+});
+{{/if}}
+{{#if framework == "fastify"}}
+export { notificationsFastifyPlugin };
+export const notificationsPluginOpts = {
+  service: notifications,
+  resolveUser: (req: { user?: { id?: string } }) => req.user?.id,
+};
+{{/if}}
+{{#if framework == "hono"}}
+export const notificationsApp = createNotificationsHono(notifications, {
+  resolveUser: (c) => c.get('userId') as string | undefined,
+});
+{{/if}}
+{{#if framework == "fetch"}}
+export const notificationsHandler = createNotificationsFetchHandler(notifications, {
+  basePath: '/api/notifications',
+  resolveUser: (req) => req.headers.get('x-user-id'),
+});
+{{/if}}

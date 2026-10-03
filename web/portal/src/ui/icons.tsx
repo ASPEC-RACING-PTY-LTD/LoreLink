@@ -118,3 +118,105 @@ export function IconPlus(props: IconProps) {
     </Icon>
   );
 }
+
+export function IconConnections(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M10 13a5 5 0 0 0 7.54.54l1.92-1.92a5 5 0 0 0-7.07-7.07l-1.1 1.1" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-1.92 1.92a5 5 0 0 0 7.07 7.07l1.1-1.1" />
+    </Icon>
+  );
+}
+
+export function IconTeams(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M3 21V8a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v11" />
+      <path d="M3 21h18" />
+      <path d="M10 16h4" />
+    </Icon>
+  );
+}
+
+export function IconGit(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="6" cy="6" r="2" />
+      <circle cx="18" cy="6" r="2" />
+      <circle cx="12" cy="18" r="2" />
+      <path d="M8 6h8" />
+      <path d="M6 8v4a4 4 0 0 0 4 4h2" />
+    </Icon>
+  );
+}
+
+export function IconSearch(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="11" cy="11" r="7" />
+      <path d="M20 20l-3-3" />
+    </Icon>
+  );
+}
+
+export function IconJobs(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="4" y="5" width="16" height="14" rx="2" />
+      <path d="M8 9h8" />
+      <path d="M8 13h5" />
+    </Icon>
+  );
+}
+
+export function IconSettings(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M4 12h2" />
+      <path d="M18 12h2" />
+      <path d="M12 4v2" />
+      <path d="M12 18v2" />
+      <path d="M6.2 6.2l1.4 1.4" />
+      <path d="M16.4 16.4l1.4 1.4" />
+      <path d="M16.4 7.6l1.4-1.4" />
+      <path d="M6.2 17.8l1.4-1.4" />
+    </Icon>
+  );
+}
+
+export function IconTrash(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 7h16" />
+      <path d="M9 7V5h6v2" />
+      <path d="M8 7l1 12h6l1-12" />
+    </Icon>
+  );
+}
+
+export function IconSync(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M21 12a9 9 0 1 1-2.6-6.3" />
+      <path d="M21 4v5h-5" />
+    </Icon>
+  );
+}
+
+export function IconFile(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6" />
+    </Icon>
+  );
+}
+
+export function IconFolder(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+    </Icon>
+  );
+}

@@ -1,1 +1,114 @@
 @import "@lorelink/shared/theme.css";
+
+.docs-prose :where(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.2;
+  scroll-margin-top: 5.5rem;
+}
+
+.docs-prose h1 {
+  font-size: clamp(2rem, 1.4vw + 1.6rem, 3rem);
+  margin: 0 0 1rem;
+}
+
+.docs-prose h2 {
+  font-size: 1.5rem;
+  margin: 2.25rem 0 0.75rem;
+}
+
+.docs-prose h3 {
+  font-size: 1.2rem;
+  margin: 1.75rem 0 0.5rem;
+}
+
+.docs-prose h4,
+.docs-prose h5,
+.docs-prose h6 {
+  font-size: 1.05rem;
+  margin: 1.5rem 0 0.45rem;
+}
+
+.docs-prose p {
+  margin: 0 0 1rem;
+}
+
+.docs-prose a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.docs-prose ul,
+.docs-prose ol {
+  margin: 0 0 1rem;
+  padding-left: 1.25rem;
+}
+
+.docs-prose li {
+  margin: 0.25rem 0;
+}
+
+.docs-prose pre {
+  margin: 0 0 1.25rem;
+  overflow-x: auto;
+  border: 1px solid var(--ll-border);
+  background: var(--ll-muted);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+  font-size: 0.875rem;
+}
+
+.docs-prose :not(pre) > code {
+  border: 1px solid var(--ll-border);
+  background: var(--ll-muted);
+  border-radius: 0.3rem;
+  padding: 0.1rem 0.35rem;
+  font-size: 0.9em;
+}
+
+.docs-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 1.25rem;
+}
+
+.docs-prose th,
+.docs-prose td {
+  border-bottom: 1px solid var(--ll-border);
+  padding: 0.65rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.docs-prose img {
+  max-width: 100%;
+  height: auto;
+}
+
+.docs-prose .callout {
+  border: 1px solid var(--ll-border);
+  background: var(--ll-muted);
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem;
+  margin: 0 0 1.25rem;
+}
+
+.docs-prose .callout-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  margin: 0 0 0.35rem;
+}
+
+.docs-prose .callout-warning,
+.docs-prose .callout-danger {
+  border-color: var(--ll-danger);
+}
+
+.docs-prose .callout-info,
+.docs-prose .callout-note,
+.docs-prose .callout-tip {
+  border-color: var(--ll-info);
+}

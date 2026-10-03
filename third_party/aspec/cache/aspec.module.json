@@ -1,0 +1,273 @@
+{
+  "$schema": "https://aspec.tech/schemas/module-manifest/v1.json",
+  "manifestVersion": 1,
+  "id": "aspec/cache",
+  "name": "Caching",
+  "summary": "In-memory and Redis-compatible caching with TTLs, namespaces, tags, stats, health checks and cache-aside helpers.",
+  "description": "Reusable caching abstraction for Node.js applications. Provides the CacheLike port used by other ASPEC modules, with an in-memory LRU store, Redis-compatible stores (ioredis and node-redis), tiered L1/L2 caching with optional pub/sub invalidation, configurable TTLs and jitter, tag and namespace invalidation, statistics, health checks, getOrSet/wrap cache-aside helpers, fail-open behaviour and a circuit breaker so an unavailable optional cache cannot crash the application.",
+  "version": "1.0.0",
+  "category": "infrastructure",
+  "tags": ["cache", "redis", "lru", "ttl", "namespace"],
+  "license": "MIT",
+  "maintainers": [
+    { "name": "ASPEC TECH", "email": "modules@aspec.tech", "url": "https://aspec.tech" }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ASPEC-RACING-PTY-LTD/aspecdev",
+    "directory": "modules/cache"
+  },
+  "homepage": "https://aspec.tech/modules/aspec/cache",
+  "readme": "README.md",
+  "changelog": "CHANGELOG.md",
+  "languages": ["typescript", "javascript"],
+  "runtimes": [{ "name": "node", "range": ">=22.13.0" }],
+  "services": [
+    {
+      "id": "redis",
+      "name": "Redis-compatible store",
+      "optional": true,
+      "entrypoint": "@aspec/cache/redis",
+      "tested": true,
+      "testedVersions": ["8.1.10"]
+    }
+  ],
+  "platforms": {
+    "os": ["linux", "darwin", "windows"],
+    "arch": ["x64", "arm64"],
+    "tested": [{ "os": "windows", "arch": "x64", "runtime": "node@24.16.0" }]
+  },
+  "capabilities": [
+    { "id": "memory-cache", "summary": "In-memory LRU cache with TTL and optional max bytes." },
+    {
+      "id": "redis-cache",
+      "summary": "Redis-compatible cache using SCAN, PX expiry and tag sets."
+    },
+    {
+      "id": "tiered-cache",
+      "summary": "L1 memory plus L2 Redis with optional pub/sub invalidation."
+    },
+    { "id": "namespaces", "summary": "Namespaced caches with O(1) generation invalidation." },
+    { "id": "cache-aside", "summary": "getOrSet and wrap with single-flight and optional SWR." },
+    {
+      "id": "fail-open",
+      "summary": "Remote failures become misses by default; circuit breaker cool-down."
+    }
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [],
+    "peer": []
+  },
+  "compatibility": { "conflicts": [], "cli": ">=0.1.0" },
+  "packages": {
+    "npm": {
+      "name": "@aspec/cache",
+      "entrypoints": {
+        ".": "createCache and shared helpers",
+        "./memory": "In-memory LRU store",
+        "./redis": "Redis-compatible store and client adapter",
+        "./tiered": "L1+L2 tiered store"
+      },
+      "dependencyType": "prod"
+    }
+  },
+  "install": {
+    "modes": ["package", "vendor"],
+    "defaultMode": "package",
+    "requirements": ["Node.js 22.13 or newer", "ioredis or redis for Redis-compatible stores"],
+    "vendor": { "source": "src", "jsSource": "dist" }
+  },
+  "configuration": {
+    "schema": "config.schema.json",
+    "env": {
+      "required": [],
+      "optional": [
+        {
+          "name": "REDIS_URL",
+          "description": "Redis-compatible connection URL when using the Redis store.",
+          "example": "redis://127.0.0.1:6379"
+        },
+        {
+          "name": "CACHE_NAMESPACE",
+          "description": "Default cache namespace."
+        }
+      ]
+    },
+    "explorer": {
+      "parameters": [
+        {
+          "id": "store",
+          "label": "Store",
+          "type": "select",
+          "default": "memory",
+          "options": [
+            { "value": "memory", "label": "In memory" },
+            { "value": "redis", "label": "Redis" },
+            { "value": "tiered", "label": "Tiered (memory + Redis)" }
+          ]
+        },
+        {
+          "id": "redisClient",
+          "label": "Redis client",
+          "type": "select",
+          "default": "ioredis",
+          "options": [
+            { "value": "ioredis", "label": "ioredis" },
+            { "value": "node-redis", "label": "node-redis" }
+          ],
+          "when": { "param": "store", "equals": "redis" }
+        },
+        {
+          "id": "failOpen",
+          "label": "Fail open",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "id": "defaultTtlMs",
+          "label": "Default TTL (ms)",
+          "type": "number",
+          "default": 60000
+        }
+      ],
+      "outputs": [
+        {
+          "id": "setup",
+          "label": "cache.setup.ts",
+          "language": "typescript",
+          "filename": "src/aspec/cache.setup.ts",
+          "template": "templates/explorer/setup.ts.tmpl"
+        },
+        {
+          "id": "env",
+          "label": ".env",
+          "language": "dotenv",
+          "template": "templates/explorer/env.tmpl"
+        }
+      ]
+    }
+  },
+  "integration": {
+    "targets": [
+      {
+        "id": "generic-typescript",
+        "label": "Any TypeScript project",
+        "language": "typescript",
+        "automated": true,
+        "docs": "integrate",
+        "files": [
+          {
+            "template": "templates/generic/setup.ts.tmpl",
+            "path": "{{ srcDir }}/aspec/cache.setup.ts",
+            "description": "Creates a memory or Redis cache from environment configuration."
+          }
+        ],
+        "env": [],
+        "steps": [
+          "Import { cache } from the generated setup file.",
+          "Pass cache into modules that accept CacheLike, or call get/set/getOrSet directly."
+        ]
+      },
+      {
+        "id": "generic-javascript",
+        "label": "Any JavaScript project",
+        "language": "javascript",
+        "automated": true,
+        "docs": "integrate",
+        "files": [
+          {
+            "template": "templates/generic/setup.js.tmpl",
+            "path": "{{ srcDir }}/aspec/cache.setup.js",
+            "description": "Creates a memory or Redis cache from environment configuration."
+          }
+        ],
+        "env": [],
+        "steps": [
+          "Import { cache } from the generated setup file.",
+          "Pass cache into modules that accept CacheLike, or call get/set/getOrSet directly."
+        ]
+      }
+    ]
+  },
+  "validation": {
+    "checks": [
+      { "type": "package", "name": "@aspec/cache", "range": "^1.0.0" },
+      { "type": "import", "specifier": "@aspec/cache" }
+    ],
+    "commands": [
+      {
+        "run": ["node", "-e", "import('@aspec/cache')"],
+        "description": "Imports the module entrypoint."
+      }
+    ],
+    "docs": "testing"
+  },
+  "uninstall": {
+    "steps": [
+      "Remove generated setup imports.",
+      "Flush optional Redis key prefix if you no longer need cached data."
+    ],
+    "dataRetention": "Memory cache is process-local. Redis keys under the configured prefix are not deleted automatically.",
+    "docs": "uninstall"
+  },
+  "migrations": {
+    "docs": "migration"
+  },
+  "docs": {
+    "sections": {
+      "summary": "docs/summary.md",
+      "install": "docs/install.md",
+      "configure": "docs/configure.md",
+      "integrate": "docs/integrate.md",
+      "api": "docs/api.md",
+      "examples": "docs/examples.md",
+      "testing": "docs/testing.md",
+      "migration": "docs/migration.md",
+      "troubleshooting": "docs/troubleshooting.md",
+      "security": "docs/security.md",
+      "uninstall": "docs/uninstall.md",
+      "ai": "docs/ai.md"
+    }
+  },
+  "security": {
+    "contact": "security@aspec.tech",
+    "policy": "https://github.com/ASPEC-RACING-PTY-LTD/aspecdev/security/policy",
+    "sensitiveData": ["none"],
+    "notes": [
+      "Do not cache secrets, session tokens or passwords.",
+      "failOpen defaults to true so cache outages degrade to loader/DB paths."
+    ],
+    "threatModel": "security"
+  },
+  "ai": {
+    "summary": "Use createCache({ store }) for CacheLike. Prefer failOpen true. Use getOrSet for cache-aside.",
+    "useWhen": [
+      "You need a CacheLike for rbac, flags or api-keys.",
+      "You need LRU, Redis, tags, namespaces or cache-aside helpers."
+    ],
+    "avoidWhen": [
+      "You need a distributed lock or durable queue (use other modules).",
+      "You must never lose writes (cache is not a primary store)."
+    ],
+    "keywords": ["cache", "redis", "lru", "ttl", "getOrSet"],
+    "entrypoints": [
+      { "name": "createCache", "import": "@aspec/cache", "description": "Creates a Cache facade." },
+      {
+        "name": "createMemoryStore",
+        "import": "@aspec/cache/memory",
+        "description": "In-memory LRU store."
+      },
+      {
+        "name": "createRedisStore",
+        "import": "@aspec/cache/redis",
+        "description": "Redis-compatible store."
+      },
+      {
+        "name": "createTieredStore",
+        "import": "@aspec/cache/tiered",
+        "description": "L1+L2 tiered store."
+      }
+    ]
+  }
+}

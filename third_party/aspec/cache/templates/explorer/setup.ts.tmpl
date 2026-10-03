@@ -1,0 +1,54 @@
+{{#if store == "memory"}}
+import { createCache } from '{{ imports.root }}';
+
+export const cache = createCache({
+  store: 'memory',
+  failOpen: {{ failOpen }},
+  defaultTtlMs: {{ defaultTtlMs }},
+  namespace: process.env.CACHE_NAMESPACE,
+});
+{{else}}
+{{#if store == "tiered"}}
+import { createCache } from '{{ imports.root }}';
+import { createMemoryStore } from '{{ imports.memory }}';
+import { createRedisStore } from '{{ imports.redis }}';
+import { createTieredStore } from '{{ imports.tiered }}';
+import { Redis } from 'ioredis';
+
+const redis = new Redis(process.env.REDIS_URL as string);
+const tiered = createTieredStore({
+  l1: createMemoryStore(),
+  l2: createRedisStore({ client: redis, ownsClient: true }),
+});
+await tiered.ready;
+
+export const cache = createCache({
+  store: tiered,
+  failOpen: {{ failOpen }},
+  defaultTtlMs: {{ defaultTtlMs }},
+  namespace: process.env.CACHE_NAMESPACE,
+});
+{{else}}
+import { createCache } from '{{ imports.root }}';
+import { createRedisStore } from '{{ imports.redis }}';
+{{#if redisClient == "node-redis"}}
+import { createClient } from 'redis';
+
+const redis = createClient({ url: process.env.REDIS_URL as string });
+await redis.connect();
+const store = createRedisStore({ client: redis, ownsClient: false });
+{{else}}
+import { Redis } from 'ioredis';
+
+const redis = new Redis(process.env.REDIS_URL as string);
+const store = createRedisStore({ client: redis, ownsClient: true });
+{{/if}}
+
+export const cache = createCache({
+  store,
+  failOpen: {{ failOpen }},
+  defaultTtlMs: {{ defaultTtlMs }},
+  namespace: process.env.CACHE_NAMESPACE,
+});
+{{/if}}
+{{/if}}

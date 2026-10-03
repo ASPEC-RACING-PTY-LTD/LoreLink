@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Jobs module configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "backend": {
+      "enum": ["memory", "sqlite", "postgres"],
+      "default": "memory"
+    },
+    "tablePrefix": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,40}$",
+      "default": "jobs_"
+    },
+    "maxAttempts": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000,
+      "default": 3
+    },
+    "concurrency": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000,
+      "default": 1
+    },
+    "pollIntervalMs": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 1000
+    },
+    "leaseMs": {
+      "type": "integer",
+      "minimum": 100,
+      "default": 30000
+    },
+    "databaseUrl": {
+      "type": "string",
+      "description": "PostgreSQL URL when backend is postgres."
+    }
+  }
+}

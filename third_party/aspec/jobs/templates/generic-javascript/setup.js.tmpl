@@ -1,0 +1,29 @@
+{{#if moduleSystem == "commonjs"}}
+const { createQueue, createWorker, installShutdownHandlers } = require('{{ imports.root }}');
+const { createMemoryBackend } = require('{{ imports.memory }}');
+
+const queue = createQueue({ backend: createMemoryBackend() });
+
+/** Starts a worker for your handlers, e.g. `await startWorker({ 'emails.send': async (payload) => {} })`. */
+async function startWorker(handlers) {
+  const worker = createWorker({ queue, handlers });
+  installShutdownHandlers(worker);
+  await worker.start();
+  return worker;
+}
+
+module.exports = { queue, startWorker };
+{{else}}
+import { createQueue, createWorker, installShutdownHandlers } from '{{ imports.root }}';
+import { createMemoryBackend } from '{{ imports.memory }}';
+
+export const queue = createQueue({ backend: createMemoryBackend() });
+
+/** Starts a worker for your handlers, e.g. `await startWorker({ 'emails.send': async (payload) => {} })`. */
+export async function startWorker(handlers) {
+  const worker = createWorker({ queue, handlers });
+  installShutdownHandlers(worker);
+  await worker.start();
+  return worker;
+}
+{{/if}}

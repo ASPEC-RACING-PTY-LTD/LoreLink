@@ -18,11 +18,13 @@ COPY go.mod go.sum* ./
 COPY . .
 RUN go mod download
 RUN CGO_ENABLED=0 go build -o /out/lorelink ./cmd/lorelink
+RUN CGO_ENABLED=0 go build -o /out/lol ./cmd/lol
 
 FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates wget && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates wget git && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /out/lorelink /usr/local/bin/lorelink
+COPY --from=build /out/lol /usr/local/bin/lol
 COPY --from=web /src/web/portal/dist /app/web/portal
 COPY --from=web /src/web/docs-site/dist /app/web/docs-site
 ENV LORELINK_DATA_DIR=/data

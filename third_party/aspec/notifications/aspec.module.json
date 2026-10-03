@@ -1,0 +1,432 @@
+{
+  "$schema": "https://aspec.tech/schemas/module-manifest/v1.json",
+  "manifestVersion": 1,
+  "id": "aspec/notifications",
+  "name": "Notifications",
+  "summary": "Email and in-app notifications with SMTP, templates, preferences, delivery tracking and retries.",
+  "description": "Reusable notification delivery for Node.js applications. Supports SMTP email (Nodemailer), transactional templates with locale fallback, in-app notifications, per-user preferences with mandatory categories, delivery status tracking, exponential backoff retries, notification history, and optional JobQueue background delivery. Optional Slack and HTTP webhook providers. Provides the shared Mailer port.",
+  "version": "1.0.0",
+  "category": "messaging",
+  "tags": ["notifications", "email", "smtp", "templates", "in-app"],
+  "license": "MIT",
+  "maintainers": [
+    { "name": "ASPEC TECH", "email": "modules@aspec.tech", "url": "https://aspec.tech" }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ASPEC-RACING-PTY-LTD/aspecdev",
+    "directory": "modules/notifications"
+  },
+  "homepage": "https://aspec.tech/modules/aspec/notifications",
+  "readme": "README.md",
+  "changelog": "CHANGELOG.md",
+  "languages": ["typescript", "javascript"],
+  "runtimes": [{ "name": "node", "range": ">=22.13.0" }],
+  "frameworks": [
+    {
+      "id": "express",
+      "name": "Express",
+      "range": "^4.18.0 || ^5.0.0",
+      "entrypoint": "@aspec/notifications/express",
+      "kind": "backend",
+      "tested": true,
+      "testedVersions": ["4.22.3", "5.2.1"]
+    },
+    {
+      "id": "fastify",
+      "name": "Fastify",
+      "range": "^5.0.0",
+      "entrypoint": "@aspec/notifications/fastify",
+      "kind": "backend",
+      "tested": true,
+      "testedVersions": ["5.12.5"]
+    },
+    {
+      "id": "hono",
+      "name": "Hono",
+      "range": "^4.0.0",
+      "entrypoint": "@aspec/notifications/hono",
+      "kind": "backend",
+      "tested": true,
+      "testedVersions": ["4.13.10"]
+    },
+    {
+      "id": "fetch",
+      "name": "Fetch API",
+      "range": ">=1.0.0",
+      "entrypoint": "@aspec/notifications/fetch",
+      "kind": "backend",
+      "tested": true,
+      "testedVersions": ["24.16.0"]
+    }
+  ],
+  "databases": [
+    { "id": "memory", "tested": true },
+    {
+      "id": "postgres",
+      "range": ">=14",
+      "entrypoint": "@aspec/notifications/sql",
+      "tested": true,
+      "testedVersions": ["17"]
+    },
+    {
+      "id": "sqlite",
+      "range": ">=3.35",
+      "entrypoint": "@aspec/notifications/sql",
+      "tested": true
+    }
+  ],
+  "services": [
+    {
+      "id": "smtp",
+      "name": "SMTP (Mailpit tested)",
+      "optional": true,
+      "entrypoint": "@aspec/notifications/smtp",
+      "tested": true,
+      "testedVersions": ["10.0.12"]
+    }
+  ],
+  "platforms": {
+    "os": ["linux", "darwin", "windows"],
+    "arch": ["x64", "arm64"],
+    "tested": [{ "os": "windows", "arch": "x64", "runtime": "node@24.16.0" }]
+  },
+  "capabilities": [
+    {
+      "id": "email-smtp",
+      "summary": "SMTP email delivery with pooling, TLS, auth and DKIM.",
+      "entrypoint": "@aspec/notifications/smtp"
+    },
+    {
+      "id": "templates",
+      "summary": "Transactional email and notification templates with locales."
+    },
+    { "id": "in-app", "summary": "In-app notifications with cursor listing and read state." },
+    {
+      "id": "preferences",
+      "summary": "Per-user category and channel preferences with mandatory categories."
+    },
+    { "id": "delivery-tracking", "summary": "Delivery status, attempts, retries and history." },
+    {
+      "id": "mailer-port",
+      "summary": "Implements the shared Mailer port for auth, users and orgs."
+    },
+    { "id": "http-api", "summary": "Inbox and preferences HTTP routers.", "optional": true }
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      {
+        "id": "aspec/jobs",
+        "range": "^1.0.0",
+        "reason": "Background delivery through the JobQueue port."
+      },
+      { "id": "aspec/db", "range": "^1.0.0", "reason": "SqlClient for the SQL store." }
+    ],
+    "peer": []
+  },
+  "compatibility": { "conflicts": [], "cli": ">=0.1.0" },
+  "packages": {
+    "npm": {
+      "name": "@aspec/notifications",
+      "entrypoints": {
+        ".": "Portable core: createNotifications, templates, Mailer",
+        "./memory": "In-memory store",
+        "./sql": "SQL store and migrations",
+        "./smtp": "SMTP transport (Nodemailer)",
+        "./slack": "Slack incoming webhook provider",
+        "./webhook": "Generic HTTP webhook provider",
+        "./express": "Express 4/5 router",
+        "./fastify": "Fastify 5 plugin",
+        "./hono": "Hono 4 sub-app",
+        "./fetch": "Fetch API handler"
+      },
+      "dependencyType": "prod"
+    }
+  },
+  "install": {
+    "modes": ["package", "vendor"],
+    "defaultMode": "package",
+    "requirements": ["Node.js 22.13 or newer", "nodemailer when using the SMTP adapter"],
+    "vendor": { "source": "src", "jsSource": "dist" }
+  },
+  "configuration": {
+    "schema": "config.schema.json",
+    "env": {
+      "required": [],
+      "optional": [
+        { "name": "SMTP_HOST", "description": "SMTP hostname.", "example": "smtp.example.com" },
+        { "name": "SMTP_PORT", "description": "SMTP port.", "example": "587" },
+        { "name": "SMTP_SECURE", "description": "Use implicit TLS.", "example": "false" },
+        { "name": "SMTP_REQUIRE_TLS", "description": "Require STARTTLS.", "example": "true" },
+        { "name": "SMTP_USER", "description": "SMTP username.", "secret": true },
+        { "name": "SMTP_PASSWORD", "description": "SMTP password.", "secret": true },
+        {
+          "name": "NOTIFICATIONS_EMAIL_FROM",
+          "description": "Default From mailbox.",
+          "example": "App <noreply@example.com>"
+        }
+      ]
+    },
+    "explorer": {
+      "parameters": [
+        {
+          "id": "framework",
+          "label": "Framework",
+          "type": "select",
+          "default": "express",
+          "options": [
+            { "value": "express", "label": "Express" },
+            { "value": "fastify", "label": "Fastify" },
+            { "value": "hono", "label": "Hono" },
+            { "value": "fetch", "label": "Fetch API" },
+            { "value": "none", "label": "No HTTP router" }
+          ]
+        },
+        {
+          "id": "storage",
+          "label": "Storage",
+          "type": "select",
+          "default": "memory",
+          "options": [
+            { "value": "memory", "label": "In memory" },
+            { "value": "postgres", "label": "PostgreSQL" },
+            { "value": "sqlite", "label": "SQLite" }
+          ]
+        },
+        { "id": "smtp", "label": "SMTP email channel", "type": "boolean", "default": true }
+      ],
+      "outputs": [
+        {
+          "id": "setup",
+          "label": "notifications.setup.ts",
+          "language": "typescript",
+          "filename": "src/aspec/notifications.setup.ts",
+          "template": "templates/explorer/setup.ts.tmpl"
+        },
+        {
+          "id": "env",
+          "label": ".env",
+          "language": "dotenv",
+          "template": "templates/explorer/env.tmpl"
+        }
+      ]
+    }
+  },
+  "integration": {
+    "targets": [
+      {
+        "id": "express-typescript",
+        "label": "Express (TypeScript)",
+        "language": "typescript",
+        "framework": "express",
+        "automated": true,
+        "docs": "frameworks/express",
+        "files": [
+          {
+            "template": "templates/express/setup.ts.tmpl",
+            "path": "{{ srcDir }}/aspec/notifications.setup.ts",
+            "description": "Creates the notifications service and Express router."
+          }
+        ],
+        "packages": [
+          { "name": "express", "range": "^4.18.0 || ^5.0.0" },
+          { "name": "nodemailer", "range": ">=6.9.0" }
+        ],
+        "env": ["SMTP_HOST", "NOTIFICATIONS_EMAIL_FROM"],
+        "steps": [
+          "Mount notificationsRouter on your Express app at /api/notifications.",
+          "Ensure resolveUser returns the authenticated user id."
+        ]
+      },
+      {
+        "id": "fastify-typescript",
+        "label": "Fastify (TypeScript)",
+        "language": "typescript",
+        "framework": "fastify",
+        "automated": true,
+        "docs": "frameworks/fastify",
+        "files": [
+          {
+            "template": "templates/fastify/setup.ts.tmpl",
+            "path": "{{ srcDir }}/aspec/notifications.setup.ts",
+            "description": "Creates the notifications service and Fastify plugin options."
+          }
+        ],
+        "packages": [
+          { "name": "fastify", "range": "^5.0.0" },
+          { "name": "nodemailer", "range": ">=6.9.0" }
+        ],
+        "env": ["SMTP_HOST", "NOTIFICATIONS_EMAIL_FROM"],
+        "steps": [
+          "Register notificationsFastifyPlugin with notificationsPluginOpts and prefix /api/notifications."
+        ]
+      },
+      {
+        "id": "hono-typescript",
+        "label": "Hono (TypeScript)",
+        "language": "typescript",
+        "framework": "hono",
+        "automated": true,
+        "docs": "frameworks/hono",
+        "files": [
+          {
+            "template": "templates/hono/setup.ts.tmpl",
+            "path": "{{ srcDir }}/aspec/notifications.setup.ts",
+            "description": "Creates the notifications service and Hono sub-app."
+          }
+        ],
+        "packages": [
+          { "name": "hono", "range": "^4.0.0" },
+          { "name": "nodemailer", "range": ">=6.9.0" }
+        ],
+        "env": ["SMTP_HOST", "NOTIFICATIONS_EMAIL_FROM"],
+        "steps": ["Mount notificationsApp with app.route('/api/notifications', notificationsApp)."]
+      },
+      {
+        "id": "fetch-typescript",
+        "label": "Fetch handler (TypeScript)",
+        "language": "typescript",
+        "framework": "fetch",
+        "automated": true,
+        "docs": "frameworks/fetch",
+        "files": [
+          {
+            "template": "templates/fetch/setup.ts.tmpl",
+            "path": "{{ srcDir }}/aspec/notifications.setup.ts",
+            "description": "Creates the notifications service and Fetch handler."
+          }
+        ],
+        "packages": [{ "name": "nodemailer", "range": ">=6.9.0" }],
+        "env": ["SMTP_HOST", "NOTIFICATIONS_EMAIL_FROM"],
+        "steps": ["Export notificationsHandler from your route module."]
+      },
+      {
+        "id": "generic-typescript",
+        "label": "Any TypeScript project",
+        "language": "typescript",
+        "automated": true,
+        "docs": "integrate",
+        "files": [
+          {
+            "template": "templates/generic/setup.ts.tmpl",
+            "path": "{{ srcDir }}/aspec/notifications.setup.ts",
+            "description": "Creates a core notifications service without a framework router."
+          }
+        ],
+        "steps": ["Import notifications and call notify() or use mailer.send()."]
+      },
+      {
+        "id": "generic-javascript",
+        "label": "Any JavaScript project",
+        "language": "javascript",
+        "automated": true,
+        "docs": "integrate",
+        "files": [
+          {
+            "template": "templates/generic/setup.ts.tmpl",
+            "path": "{{ srcDir }}/aspec/notifications.setup.js",
+            "description": "Creates a core notifications service (ESM or CommonJS)."
+          }
+        ],
+        "steps": ["Import or require the setup file and call notify()."]
+      }
+    ]
+  },
+  "validation": {
+    "checks": [
+      { "type": "package", "name": "@aspec/notifications", "range": "^1.0.0" },
+      { "type": "import", "specifier": "@aspec/notifications" }
+    ],
+    "commands": [
+      {
+        "run": ["node", "-e", "import('@aspec/notifications')"],
+        "description": "Imports the module entrypoint."
+      }
+    ],
+    "docs": "testing"
+  },
+  "uninstall": {
+    "steps": [
+      "Unmount notification routers and unregister the notifications.deliver job handler.",
+      "Remove SMTP environment variables.",
+      "Drop notifications_* tables if the SQL store was used."
+    ],
+    "dataRetention": "SQL tables and in-memory state are not removed automatically.",
+    "docs": "uninstall"
+  },
+  "migrations": {
+    "docs": "migration",
+    "database": {
+      "dialects": ["postgres", "sqlite"],
+      "entrypoint": "@aspec/notifications/sql",
+      "tables": [
+        "notifications_items",
+        "notifications_deliveries",
+        "notifications_delivery_attempts",
+        "notifications_preferences",
+        "notifications_schema_migrations"
+      ]
+    }
+  },
+  "docs": {
+    "sections": {
+      "summary": "docs/summary.md",
+      "install": "docs/install.md",
+      "configure": "docs/configure.md",
+      "integrate": "docs/integrate.md",
+      "frameworks/express": "docs/frameworks/express.md",
+      "frameworks/fastify": "docs/frameworks/fastify.md",
+      "frameworks/hono": "docs/frameworks/hono.md",
+      "frameworks/fetch": "docs/frameworks/fetch.md",
+      "api": "docs/api.md",
+      "examples": "docs/examples.md",
+      "testing": "docs/testing.md",
+      "migration": "docs/migration.md",
+      "troubleshooting": "docs/troubleshooting.md",
+      "security": "docs/security.md",
+      "uninstall": "docs/uninstall.md",
+      "ai": "docs/ai.md"
+    }
+  },
+  "security": {
+    "contact": "security@aspec.tech",
+    "policy": "https://github.com/ASPEC-RACING-PTY-LTD/aspecdev/security/policy",
+    "sensitiveData": ["credentials", "secrets", "pii"],
+    "notes": [
+      "SMTP passwords and DKIM keys must never be logged.",
+      "Template HTML is escaped by default."
+    ],
+    "threatModel": "security"
+  },
+  "ai": {
+    "summary": "Use createNotifications() for email and in-app delivery; export notifications.mailer for the Mailer port; mount framework routers for inbox APIs.",
+    "useWhen": [
+      "You need transactional email over SMTP.",
+      "You need in-app notifications and user preferences.",
+      "Auth or users modules need a Mailer implementation."
+    ],
+    "avoidWhen": [
+      "You only need signed outbound webhooks (use aspec/webhooks).",
+      "You require a paid ESP-specific SDK without an adapter."
+    ],
+    "keywords": ["notifications", "email", "smtp", "mailer", "in-app", "templates"],
+    "entrypoints": [
+      {
+        "name": "createNotifications",
+        "import": "@aspec/notifications",
+        "description": "Creates the notification service."
+      },
+      {
+        "name": "createSmtpTransport",
+        "import": "@aspec/notifications/smtp",
+        "description": "SMTP transport."
+      },
+      {
+        "name": "createNotificationsRouter",
+        "import": "@aspec/notifications/express",
+        "description": "Express router."
+      }
+    ]
+  }
+}

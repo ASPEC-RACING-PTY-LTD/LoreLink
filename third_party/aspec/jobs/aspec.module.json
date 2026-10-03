@@ -1,0 +1,485 @@
+{
+  "$schema": "https://aspec.tech/schemas/module-manifest/v1.json",
+  "manifestVersion": 1,
+  "id": "aspec/jobs",
+  "name": "Jobs",
+  "summary": "Background job queues, scheduling, retries, cancellation, progress, DLQ and workers.",
+  "description": "Production-ready background task processing with memory and SQL backends, cron scheduling via croner, cooperative cancellation, dead-letter queues, priorities and graceful worker shutdown. Provides the JobQueue port for other ASPEC modules.",
+  "version": "1.0.0",
+  "category": "infrastructure",
+  "tags": ["jobs", "queue", "worker", "cron", "background"],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "ASPEC TECH",
+      "email": "modules@aspec.tech",
+      "url": "https://aspec.tech"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ASPEC-RACING-PTY-LTD/aspecdev",
+    "directory": "modules/jobs"
+  },
+  "homepage": "https://aspec.tech/modules/aspec/jobs",
+  "readme": "README.md",
+  "changelog": "CHANGELOG.md",
+  "languages": ["typescript", "javascript"],
+  "runtimes": [
+    {
+      "name": "node",
+      "range": ">=22.13.0"
+    }
+  ],
+  "frameworks": [
+    {
+      "id": "express",
+      "name": "Express",
+      "range": "^4.18.0 || ^5.0.0",
+      "entrypoint": "@aspec/jobs/express",
+      "kind": "backend",
+      "tested": false,
+      "testedVersions": []
+    },
+    {
+      "id": "fastify",
+      "name": "Fastify",
+      "range": "^5.0.0",
+      "entrypoint": "@aspec/jobs/fastify",
+      "kind": "backend",
+      "tested": false,
+      "testedVersions": []
+    },
+    {
+      "id": "hono",
+      "name": "Hono",
+      "range": "^4.0.0",
+      "entrypoint": "@aspec/jobs/hono",
+      "kind": "backend",
+      "tested": false,
+      "testedVersions": []
+    },
+    {
+      "id": "fetch",
+      "name": "Fetch",
+      "range": "*",
+      "entrypoint": "@aspec/jobs/fetch",
+      "kind": "backend",
+      "tested": true,
+      "testedVersions": ["24.16.0"]
+    },
+    {
+      "id": "vitest",
+      "name": "Vitest",
+      "range": "^5.0.0",
+      "kind": "testing",
+      "tested": true,
+      "testedVersions": ["5.0.2"],
+      "entrypoint": "@aspec/jobs"
+    }
+  ],
+  "databases": [
+    {
+      "id": "memory",
+      "tested": true
+    },
+    {
+      "id": "postgres",
+      "range": ">=14",
+      "entrypoint": "@aspec/jobs/sql",
+      "tested": true,
+      "testedVersions": ["17"]
+    },
+    {
+      "id": "sqlite",
+      "range": ">=3.35",
+      "entrypoint": "@aspec/jobs/sql",
+      "tested": true
+    }
+  ],
+  "services": [],
+  "platforms": {
+    "os": ["linux", "darwin", "windows"],
+    "arch": ["x64", "arm64"],
+    "tested": [
+      {
+        "os": "windows",
+        "arch": "x64",
+        "runtime": "node@24.16.0"
+      }
+    ]
+  },
+  "capabilities": [
+    {
+      "id": "job-queues",
+      "summary": "Enqueue and claim background jobs."
+    },
+    {
+      "id": "job-scheduling",
+      "summary": "Delayed jobs and cron/interval schedules."
+    },
+    {
+      "id": "retries-dlq",
+      "summary": "Backoff retries and dead-letter queues."
+    },
+    {
+      "id": "admin-http",
+      "summary": "Optional admin inspect/retry/cancel HTTP adapters.",
+      "optional": true
+    }
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [],
+    "peer": []
+  },
+  "compatibility": {
+    "conflicts": [],
+    "cli": ">=0.1.0"
+  },
+  "packages": {
+    "npm": {
+      "name": "@aspec/jobs",
+      "entrypoints": {
+        ".": "Portable core",
+        "./memory": "In-memory backend",
+        "./sql": "SQL backend and migrations",
+        "./express": "Express admin adapter",
+        "./fastify": "Fastify admin adapter",
+        "./hono": "Hono admin adapter",
+        "./fetch": "Fetch admin adapter"
+      },
+      "dependencyType": "prod"
+    }
+  },
+  "install": {
+    "modes": ["package", "vendor"],
+    "defaultMode": "package",
+    "requirements": ["Node.js 22.13 or newer"],
+    "vendor": {
+      "source": "src",
+      "jsSource": "dist"
+    }
+  },
+  "configuration": {
+    "schema": "config.schema.json",
+    "env": {
+      "required": [],
+      "optional": [
+        {
+          "name": "JOBS_DATABASE_URL",
+          "description": "PostgreSQL URL for the SQL backend.",
+          "secret": true
+        }
+      ]
+    },
+    "explorer": {
+      "parameters": [
+        {
+          "id": "framework",
+          "label": "Framework",
+          "type": "select",
+          "default": "none",
+          "options": [
+            {
+              "value": "none",
+              "label": "No HTTP admin"
+            },
+            {
+              "value": "express",
+              "label": "Express"
+            },
+            {
+              "value": "fastify",
+              "label": "Fastify"
+            },
+            {
+              "value": "hono",
+              "label": "Hono"
+            },
+            {
+              "value": "fetch",
+              "label": "Fetch"
+            }
+          ]
+        },
+        {
+          "id": "backend",
+          "label": "Backend",
+          "type": "select",
+          "default": "memory",
+          "options": [
+            {
+              "value": "memory",
+              "label": "In memory"
+            },
+            {
+              "value": "sqlite",
+              "label": "SQLite"
+            },
+            {
+              "value": "postgres",
+              "label": "PostgreSQL"
+            }
+          ]
+        },
+        {
+          "id": "maxAttempts",
+          "label": "Max attempts",
+          "type": "number",
+          "default": 3
+        },
+        {
+          "id": "concurrency",
+          "label": "Worker concurrency",
+          "type": "number",
+          "default": 1
+        }
+      ],
+      "outputs": [
+        {
+          "id": "setup",
+          "label": "jobs.setup.ts",
+          "language": "typescript",
+          "filename": "src/aspec/jobs.setup.ts",
+          "template": "templates/explorer/setup.ts.tmpl"
+        },
+        {
+          "id": "env",
+          "label": ".env",
+          "language": "dotenv",
+          "template": "templates/explorer/env.tmpl"
+        }
+      ]
+    }
+  },
+  "integration": {
+    "targets": [
+      {
+        "id": "express-typescript",
+        "label": "Express (TypeScript)",
+        "language": "typescript",
+        "framework": "express",
+        "automated": true,
+        "docs": "frameworks/express",
+        "files": [
+          {
+            "template": "templates/express/setup.ts.tmpl",
+            "path": "{{ srcDir }}/aspec/jobs.setup.ts",
+            "description": "Creates the queue, worker and Express admin middleware."
+          }
+        ],
+        "packages": [
+          {
+            "name": "express",
+            "range": "^4.18.0 || ^5.0.0"
+          }
+        ],
+        "env": [],
+        "steps": [
+          "Mount jobsAdmin on your Express app at /admin/jobs.",
+          "Replace authorize with real authentication.",
+          "Call worker.start() during application boot."
+        ]
+      },
+      {
+        "id": "fastify-typescript",
+        "label": "Fastify (TypeScript)",
+        "language": "typescript",
+        "framework": "fastify",
+        "automated": true,
+        "docs": "frameworks/fastify",
+        "files": [
+          {
+            "template": "templates/fastify/setup.ts.tmpl",
+            "path": "{{ srcDir }}/aspec/jobs.setup.ts",
+            "description": "Creates the queue, worker and Fastify admin plugin export."
+          }
+        ],
+        "packages": [
+          {
+            "name": "fastify",
+            "range": "^5.0.0"
+          }
+        ],
+        "env": [],
+        "steps": [
+          "Register jobsAdminFastifyPlugin with prefix /admin/jobs and authorize.",
+          "Call worker.start() during application boot."
+        ]
+      },
+      {
+        "id": "hono-typescript",
+        "label": "Hono (TypeScript)",
+        "language": "typescript",
+        "framework": "hono",
+        "automated": true,
+        "docs": "frameworks/hono",
+        "files": [
+          {
+            "template": "templates/hono/setup.ts.tmpl",
+            "path": "{{ srcDir }}/aspec/jobs.setup.ts",
+            "description": "Creates the queue, worker and Hono admin handler."
+          }
+        ],
+        "packages": [
+          {
+            "name": "hono",
+            "range": "^4.0.0"
+          }
+        ],
+        "env": [],
+        "steps": [
+          "Mount jobsAdmin on /admin/jobs/*.",
+          "Call worker.start() during application boot."
+        ]
+      },
+      {
+        "id": "fetch-typescript",
+        "label": "Fetch handler (TypeScript)",
+        "language": "typescript",
+        "framework": "fetch",
+        "automated": true,
+        "docs": "frameworks/fetch",
+        "files": [
+          {
+            "template": "templates/fetch/setup.ts.tmpl",
+            "path": "{{ srcDir }}/aspec/jobs.setup.ts",
+            "description": "Creates the queue, worker and Fetch admin handler."
+          }
+        ],
+        "packages": [],
+        "env": [],
+        "steps": [
+          "Export jobsAdmin from a route that receives Request objects.",
+          "Call worker.start() during application boot."
+        ]
+      },
+      {
+        "id": "generic-typescript",
+        "label": "Any TypeScript project",
+        "language": "typescript",
+        "automated": false,
+        "docs": "integrate",
+        "files": [
+          {
+            "template": "templates/generic-typescript/setup.ts.tmpl",
+            "path": "{{ srcDir }}/aspec/jobs.setup.ts",
+            "description": "Creates the queue and worker."
+          }
+        ],
+        "steps": ["Register handlers and call worker.start()."]
+      },
+      {
+        "id": "generic-javascript",
+        "label": "Any JavaScript project",
+        "language": "javascript",
+        "automated": false,
+        "docs": "integrate",
+        "files": [
+          {
+            "template": "templates/generic-javascript/setup.js.tmpl",
+            "path": "{{ srcDir }}/aspec/jobs.setup.js",
+            "description": "Creates the queue and worker."
+          }
+        ],
+        "steps": ["Register handlers and call worker.start()."]
+      }
+    ]
+  },
+  "validation": {
+    "checks": [
+      {
+        "type": "package",
+        "name": "@aspec/jobs",
+        "range": "^1.0.0"
+      },
+      {
+        "type": "import",
+        "specifier": "@aspec/jobs"
+      }
+    ],
+    "commands": [
+      {
+        "run": ["node", "-e", "import('@aspec/jobs')"],
+        "description": "Imports the module entrypoint."
+      }
+    ],
+    "docs": "testing"
+  },
+  "uninstall": {
+    "steps": ["Stop workers.", "Remove admin routes.", "Drop jobs_* tables if desired."],
+    "dataRetention": "Job rows are not dropped automatically.",
+    "docs": "uninstall"
+  },
+  "migrations": {
+    "docs": "migration",
+    "database": {
+      "dialects": ["postgres", "sqlite"],
+      "entrypoint": "@aspec/jobs/sql",
+      "tables": ["jobs_jobs", "jobs_schema_migrations"]
+    }
+  },
+  "docs": {
+    "sections": {
+      "summary": "docs/summary.md",
+      "install": "docs/install.md",
+      "configure": "docs/configure.md",
+      "integrate": "docs/integrate.md",
+      "frameworks/express": "docs/frameworks/express.md",
+      "frameworks/fastify": "docs/frameworks/fastify.md",
+      "frameworks/hono": "docs/frameworks/hono.md",
+      "frameworks/fetch": "docs/frameworks/fetch.md",
+      "frameworks/vitest": "docs/frameworks/vitest.md",
+      "api": "docs/api.md",
+      "examples": "docs/examples.md",
+      "testing": "docs/testing.md",
+      "migration": "docs/migration.md",
+      "troubleshooting": "docs/troubleshooting.md",
+      "security": "docs/security.md",
+      "uninstall": "docs/uninstall.md",
+      "ai": "docs/ai.md"
+    }
+  },
+  "security": {
+    "contact": "security@aspec.tech",
+    "policy": "https://github.com/ASPEC-RACING-PTY-LTD/aspecdev/security/policy",
+    "sensitiveData": ["pii"],
+    "notes": [
+      "Admin adapters require an authorize hook.",
+      "Error stacks are logged, never stored on jobs."
+    ],
+    "threatModel": "security"
+  },
+  "ai": {
+    "summary": "Use createQueue + createWorker for background jobs; SQL backends via @aspec/jobs/sql.",
+    "useWhen": [
+      "Background work, cron, retries or DLQ are needed.",
+      "Other modules need a JobQueue."
+    ],
+    "avoidWhen": ["Only fire-and-forget timers without inspection."],
+    "keywords": ["jobs", "queue", "worker", "cron", "dlq"],
+    "entrypoints": [
+      {
+        "name": "createQueue",
+        "import": "@aspec/jobs",
+        "description": "Creates a queue."
+      },
+      {
+        "name": "createWorker",
+        "import": "@aspec/jobs",
+        "description": "Creates a worker."
+      },
+      {
+        "name": "createMemoryBackend",
+        "import": "@aspec/jobs/memory",
+        "description": "In-memory backend."
+      },
+      {
+        "name": "createSqlBackend",
+        "import": "@aspec/jobs/sql",
+        "description": "SQL backend."
+      }
+    ]
+  }
+}

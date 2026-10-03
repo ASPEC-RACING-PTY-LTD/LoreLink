@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Webhooks module configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "storage": { "enum": ["memory", "postgres", "sqlite"], "default": "memory" },
+    "tablePrefix": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,40}$",
+      "default": "webhooks_"
+    },
+    "requireHttps": { "type": "boolean", "default": true },
+    "disableAfterFailures": { "type": "integer", "minimum": 1, "default": 10 },
+    "timeoutMs": { "type": "number", "minimum": 1, "default": 10000 },
+    "maxResponseBytes": { "type": "number", "minimum": 1, "default": 64000 }
+  }
+}

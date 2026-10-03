@@ -1,0 +1,78 @@
+{
+  "name": "@aspec/cache",
+  "version": "1.0.0",
+  "description": "Caching abstraction with in-memory and Redis-compatible stores, TTLs, namespaces, tags, invalidation, statistics, health checks and cache-aside helpers.",
+  "type": "module",
+  "license": "MIT",
+  "author": "ASPEC TECH",
+  "homepage": "https://aspec.tech/modules/aspec/cache",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ASPEC-RACING-PTY-LTD/aspecdev",
+    "directory": "modules/cache"
+  },
+  "keywords": [
+    "aspec",
+    "cache",
+    "redis",
+    "lru",
+    "ttl",
+    "namespace",
+    "cache-aside"
+  ],
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./memory": {
+      "types": "./dist/memory.d.ts",
+      "default": "./dist/memory.js"
+    },
+    "./redis": {
+      "types": "./dist/redis.d.ts",
+      "default": "./dist/redis.js"
+    },
+    "./tiered": {
+      "types": "./dist/tiered.d.ts",
+      "default": "./dist/tiered.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "docs",
+    "templates",
+    "aspec.module.json",
+    "config.schema.json",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "lint": "biome check ."
+  },
+  "peerDependencies": {
+    "ioredis": "^5.0.0 || ^6.0.0",
+    "redis": "^4.6.0 || ^5.0.0 || ^6.0.0"
+  },
+  "peerDependenciesMeta": {
+    "ioredis": {
+      "optional": true
+    },
+    "redis": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "ioredis": "^6.0.0",
+    "redis": "^6.2.1"
+  }
+}

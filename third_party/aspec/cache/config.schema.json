@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ASPEC cache configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "store": { "enum": ["memory", "redis", "tiered"], "default": "memory" },
+    "namespace": { "type": "string" },
+    "defaultTtlMs": { "type": "integer", "minimum": 0 },
+    "defaultJitterMs": { "type": "integer", "minimum": 0 },
+    "failOpen": { "type": "boolean", "default": true },
+    "timeoutMs": { "type": "integer", "minimum": 1, "default": 2000 },
+    "redisUrl": { "type": "string", "description": "Redis-compatible URL." },
+    "prefix": { "type": "string", "default": "aspec:cache:" },
+    "maxEntries": { "type": "integer", "minimum": 1, "default": 1000 },
+    "maxBytes": { "type": "integer", "minimum": 1 },
+    "circuitBreaker": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "threshold": { "type": "integer", "minimum": 1, "default": 5 },
+        "coolDownMs": { "type": "integer", "minimum": 1, "default": 5000 }
+      }
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{{#if moduleSystem == "commonjs"}}
+const { createWebhooks } = require('{{ imports.root }}');
+const { createMemoryStore } = require('{{ imports.memory }}');
+
+const webhooks = createWebhooks({
+  store: createMemoryStore(),
+  security: {
+    encryptionKey: process.env.WEBHOOKS_ENCRYPTION_KEY,
+    ssrf: { requireHttps: true },
+  },
+});
+
+module.exports = { webhooks };
+{{else}}
+import { createWebhooks } from '{{ imports.root }}';
+import { createMemoryStore } from '{{ imports.memory }}';
+
+export const webhooks = createWebhooks({
+  store: createMemoryStore(),
+  security: {
+    encryptionKey: process.env.WEBHOOKS_ENCRYPTION_KEY ?? '',
+    ssrf: { requireHttps: true },
+  },
+});
+{{/if}}

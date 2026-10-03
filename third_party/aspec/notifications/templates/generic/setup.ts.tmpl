@@ -1,0 +1,45 @@
+{{#if moduleSystem == "commonjs"}}
+const { createNotifications, createEmailChannel, createTemplateRegistry, createConsoleChannel } = require('{{ imports.root }}');
+const { createMemoryStore } = require('{{ imports.memory }}');
+
+const notifications = createNotifications({
+  store: createMemoryStore(),
+  templates: createTemplateRegistry({
+    email: [{ id: 'welcome', subject: 'Welcome \{{ name }}', text: 'Hello \{{ name }}', requiredVariables: ['name'] }],
+  }),
+  channels: {
+    email: createEmailChannel(
+      // Replace with createSmtpTransport from @aspec/notifications/smtp in production.
+      { send: async () => ({}) },
+    ),
+    console: createConsoleChannel(),
+  },
+  preferences: {
+    categories: {
+      security: { mandatory: true, channels: ['email', 'in-app'] },
+    },
+  },
+});
+
+module.exports = { notifications, mailer: notifications.mailer };
+{{else}}
+import { createNotifications, createEmailChannel, createTemplateRegistry, createConsoleChannel } from '{{ imports.root }}';
+import { createMemoryStore } from '{{ imports.memory }}';
+
+export const notifications = createNotifications({
+  store: createMemoryStore(),
+  templates: createTemplateRegistry({
+    email: [{ id: 'welcome', subject: 'Welcome \{{ name }}', text: 'Hello \{{ name }}', requiredVariables: ['name'] }],
+  }),
+  channels: {
+    console: createConsoleChannel(),
+  },
+  preferences: {
+    categories: {
+      security: { mandatory: true, channels: ['email', 'in-app'] },
+    },
+  },
+});
+
+export const mailer = notifications.mailer;
+{{/if}}

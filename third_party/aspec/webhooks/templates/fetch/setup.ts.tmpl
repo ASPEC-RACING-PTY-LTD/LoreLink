@@ -1,0 +1,16 @@
+import { createWebhooks } from '{{ imports.root }}';
+import { createMemoryStore } from '{{ imports.memory }}';
+import { createWebhooksAdminFetchHandler } from '{{ imports.fetch }}';
+
+export const webhooks = createWebhooks({
+  store: createMemoryStore(),
+  security: {
+    encryptionKey: process.env.WEBHOOKS_ENCRYPTION_KEY!,
+    ssrf: { requireHttps: true },
+  },
+});
+
+export const webhooksAdminHandler = createWebhooksAdminFetchHandler(webhooks, {
+  basePath: '/admin/webhooks',
+  resolveSubject: () => ({ id: 'admin' }),
+});

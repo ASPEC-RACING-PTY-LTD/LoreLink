@@ -1,0 +1,15 @@
+import { createWebhooks } from '{{ imports.root }}';
+import { createMemoryStore } from '{{ imports.memory }}';
+import { createWebhooksAdminHono } from '{{ imports.hono }}';
+
+export const webhooks = createWebhooks({
+  store: createMemoryStore(),
+  security: {
+    encryptionKey: process.env.WEBHOOKS_ENCRYPTION_KEY!,
+    ssrf: { requireHttps: true },
+  },
+});
+
+export const webhooksAdminApp = createWebhooksAdminHono(webhooks, {
+  resolveSubject: (c) => c.get('subject'),
+});

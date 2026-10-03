@@ -1,0 +1,25 @@
+import { createNotifications, createEmailChannel, createTemplateRegistry } from '{{ imports.root }}';
+import { createMemoryStore } from '{{ imports.memory }}';
+import { createSmtpTransport, smtpOptionsFromEnv } from '{{ imports.smtp }}';
+import { notificationsFastifyPlugin } from '{{ imports.fastify }}';
+
+const transport = createSmtpTransport(smtpOptionsFromEnv());
+export const notifications = createNotifications({
+  store: createMemoryStore(),
+  templates: createTemplateRegistry({
+    email: [{ id: 'welcome', subject: 'Welcome \{{ name }}', text: 'Hello \{{ name }}', requiredVariables: ['name'] }],
+  }),
+  channels: { email: createEmailChannel(transport) },
+  preferences: {
+    categories: {
+      security: { mandatory: true, channels: ['email', 'in-app'] },
+      account: { mandatory: true, channels: ['email', 'in-app'] },
+    },
+  },
+});
+export const mailer = notifications.mailer;
+export { notificationsFastifyPlugin };
+export const notificationsPluginOpts = {
+  service: notifications,
+  resolveUser: (req: { user?: { id?: string } }) => req.user?.id,
+};

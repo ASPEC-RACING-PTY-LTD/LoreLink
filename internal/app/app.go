@@ -10,10 +10,20 @@ import (
 	"time"
 
 	"lorelink.dev/lorelink/internal/api"
+	"lorelink.dev/lorelink/internal/aspecmod"
 	"lorelink.dev/lorelink/internal/config"
+	"lorelink.dev/lorelink/internal/connector"
+	"lorelink.dev/lorelink/internal/connector/codehold"
+	"lorelink.dev/lorelink/internal/connector/genericgit"
+	"lorelink.dev/lorelink/internal/connector/githubconn"
+	"lorelink.dev/lorelink/internal/jobs"
+	"lorelink.dev/lorelink/internal/maintainer"
+	"lorelink.dev/lorelink/internal/publish"
+	"lorelink.dev/lorelink/internal/searchidx"
 	"lorelink.dev/lorelink/internal/secrets"
 	"lorelink.dev/lorelink/internal/store"
 	"lorelink.dev/lorelink/internal/webui"
+	"lorelink.dev/lorelink/internal/workspace"
 )
 
 type App struct {
@@ -36,6 +46,10 @@ func Start(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, erro
 		_ = st.Close()
 		return nil, err
 	}
+	if err := st.SeedASPEC(ctx); err != nil {
+		_ = st.Close()
+		return nil, fmt.Errorf("seed aspec modules: %w", err)
+	}
 	key, err := secrets.LoadOrCreateInstanceKey(cfg.DataDir)
 	if err != nil {
 		_ = st.Close()
@@ -47,7 +61,18 @@ func Start(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, erro
 		return nil, err
 	}
 
-	apiServer := api.New(st, log, cfg.PublicURL)
+	reg := connector.NewRegistry(genericgit.New(), codehold.New(), githubconn.New())
+	ws := &workspace.Manager{DataDir: cfg.DataDir, Store: st, Cipher: cipher, Reg: reg}
+	idx := &searchidx.Indexer{Store: st, WS: ws}
+	pub := &publish.Service{DataDir: cfg.DataDir, Store: st, WS: ws, Index: idx}
+	mnt := &maintainer.Service{Store: st, WS: ws}
+	worker := jobs.New(st, ws, pub, idx, mnt, log)
+	worker.Start(ctx)
+
+	apiServer := api.New(st, log, cfg.PublicURL).WithPlatform(cipher, reg, ws, cfg.DataDir)
+	apiServer.APIKeyPepper = aspecmod.PepperFromInstanceKey(key)
+	apiServer.Maintainer = mnt
+	apiServer.Index = idx
 	mux := http.NewServeMux()
 	mux.Handle("/healthz", apiServer.Handler())
 	mux.Handle("/readyz", apiServer.Handler())
@@ -100,7 +125,7 @@ func firstExisting(paths ...string) string {
 }
 
 func Version() string {
-	return "0.1.0-phase0"
+	return "0.2.0"
 }
 
 func Doctor(ctx context.Context, cfg config.Config) error {
@@ -120,5 +145,9 @@ func Doctor(ctx context.Context, cfg config.Config) error {
 		return fmt.Errorf("instance key: %w", err)
 	}
 	fmt.Println("  instance key: ok")
+	if _, err := os.Stat(cfg.DataDir); err != nil {
+		return fmt.Errorf("data dir: %w", err)
+	}
+	fmt.Println("  workspaces:", filepath.Join(cfg.DataDir, "workspaces"))
 	return nil
 }
